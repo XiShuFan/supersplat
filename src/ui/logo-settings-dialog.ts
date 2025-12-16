@@ -105,6 +105,11 @@ class LogoSettingsDialog extends Container {
         });
         previewImage.dom.style.maxWidth = '100%';
         previewImage.dom.style.marginTop = '8px';
+        const placeholderUrl = new URL(
+            '../../static/images/preview-placeholder.png',
+            import.meta.url
+        ).toString();
+        (previewImage.dom as HTMLImageElement).src = placeholderUrl;
 
         content.append(previewImage);
 
