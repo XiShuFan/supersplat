@@ -1,9 +1,10 @@
 import { BooleanInput, Button, Container, Element, Label, NumericInput, SelectInput, VectorInput } from '@playcanvas/pcui';
 
 import { Events } from '../events';
-import { ImageSettings } from '../render';
+import { ImageSettings, ImageBuffers } from '../render';
 import { localize } from './localization';
 import sceneExport from './svg/export.svg';
+import { Camera } from '../camera';
 
 const createSvg = (svgString: string, args = {}) => {
     const decodedStr = decodeURIComponent(svgString.substring('data:image/svg+xml,'.length));
@@ -14,7 +15,7 @@ const createSvg = (svgString: string, args = {}) => {
 };
 
 class LogoSettingsDialog extends Container {
-    show: () => Promise<ImageSettings | null>;
+    show: () => Promise<ImageBuffers | null>;
     hide: () => void;
     destroy: () => void;
 
@@ -145,7 +146,9 @@ class LogoSettingsDialog extends Container {
 
         this.append(dialog);
 
+        // 渲染图片结果
         let previewImageUrl: string = null;
+        let imageArrayBuffer: ArrayBuffer = null;
 
         let targetSize: { width: number, height: number };
 
@@ -198,6 +201,7 @@ class LogoSettingsDialog extends Container {
 
             // 调用外部 await 方法
             const arrayBuffer = await events.invoke("render.image.and.return", imageSettings);
+            imageArrayBuffer = arrayBuffer;
 
             // ArrayBuffer -> Blob -> ObjectURL
             const blob = new Blob([arrayBuffer], { type: 'image/png' });
@@ -233,7 +237,7 @@ class LogoSettingsDialog extends Container {
             document.addEventListener('keydown', keydown);
             this.dom.focus();
 
-            return new Promise<ImageSettings | null>((resolve) => {
+            return new Promise<ImageBuffers | null>((resolve) => {
                 onCancel = () => {
                     resolve(null);
                 };
@@ -241,14 +245,14 @@ class LogoSettingsDialog extends Container {
                 onOK = () => {
                     const [width, height] = resolutionValue.value;
 
-                    const imageSettings = {
+                    const imageBuffers = {
                         width,
                         height,
-                        transparentBg: transparentBgBoolean.value,
-                        showDebug: showDebugBoolean.value
+                        buffer: imageArrayBuffer,
+                        url: previewImageUrl
                     };
 
-                    resolve(imageSettings);
+                    resolve(imageBuffers);
                 };
             }).finally(() => {
                 document.removeEventListener('keydown', keydown);

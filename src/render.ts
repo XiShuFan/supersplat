@@ -7,6 +7,7 @@ import { PngCompressor } from './png-compressor';
 import { Scene } from './scene';
 import { Splat } from './splat';
 import { localize } from './ui/localization';
+import { Camera } from './camera';
 
 type ImageSettings = {
     width: number;
@@ -14,6 +15,13 @@ type ImageSettings = {
     transparentBg: boolean;
     showDebug: boolean;
 };
+
+type ImageBuffers = {
+    width: number;
+    height: number;
+    buffer: ArrayBuffer;
+    url: string;
+}
 
 type VideoSettings = {
     startFrame: number;
@@ -260,6 +268,43 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
     });
 
 
+    events.function('render.point.and.download', async (imageBuffers: ImageBuffers) => {
+        try {
+            const { width, height, buffer: imageArrayBuffer, url: previewImageUrl } = imageBuffers;
+            const camera: Camera = events.invoke("targetCamera");
+            const worldLayer = camera.scene.app.scene.layers.getLayerByName('World');
+            camera.picker.resize(width, height);
+            camera.picker.prepare(camera.entity.camera, camera.scene.app.scene, [worldLayer]);
+
+            // 获取深度信息
+            camera.picker.getWorldPointAsync(width / 2, height / 2).then((worldPoint) => {
+                if (worldPoint) {
+                    // worldPoint is a Vec3 in world space
+                    console.log('Clicked at:', worldPoint);
+                } else {
+                    // No object was clicked (background)
+                    console.log('Clicked on empty space');
+                }
+            });
+
+            // construct filename
+            const selected = events.invoke('selection') as Splat;
+            const filename = `${removeExtension(selected?.name ?? 'SuperSplat')}-image.png`;
+
+            // download
+            downloadFile(imageArrayBuffer, filename);
+
+            return true;
+        } catch (error) {
+            await events.invoke('showPopup', {
+                type: 'error',
+                header: localize('render.point.and.download'),
+                message: `'${error.message ?? error}'`
+            });
+        }
+    });
+
+
 
     events.function('render.video', async (videoSettings: VideoSettings, fileStream: FileSystemWritableFileStream) => {
         events.fire('progressStart', localize('panel.render.render-video'));
@@ -491,4 +536,4 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
     });
 };
 
-export { ImageSettings, VideoSettings, registerRenderEvents };
+export { ImageSettings, ImageBuffers, VideoSettings, registerRenderEvents };

@@ -245,10 +245,10 @@ class EditorUI {
         });
 
         events.function('show.logoSettingsDialog', async () => {
-            const logoSettings = await logoSettingsDialog.show();
+            const imageBuffers = await logoSettingsDialog.show();
 
-            if (logoSettings) {
-                console.log('logo settings:', logoSettings);
+            if (imageBuffers) {
+                await events.invoke('render.point.and.download', imageBuffers);
             }
         });
 

@@ -48,6 +48,11 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
         return scene.targetSize;
     });
 
+    // TODO 获取目标相机
+    events.function('targetCamera', () => {
+        return scene.camera;
+    });
+
     events.on('scene.clear', () => {
         scene.clear();
         editHistory.clear();
