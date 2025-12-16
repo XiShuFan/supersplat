@@ -182,6 +182,7 @@ class Menu extends Container {
             text: localize('menu.file.import', { ellipsis: true }),
             icon: createSvg(sceneImport),
             onSelect: async () => {
+                console.log("menu import scene");
                 await events.invoke('scene.import');
             }
         }, {
@@ -254,6 +255,10 @@ class Menu extends Container {
             text: localize('menu.render.video', { ellipsis: true }),
             icon: createSvg(sceneExport),
             onSelect: async () => await events.invoke('show.videoSettingsDialog')
+        }, {
+            text: localize('menu.add.logo', { ellipsis: true }),
+            icon: createSvg(sceneExport),
+            onSelect: async () => await events.invoke('show.logoSettingsDialog')
         }]);
 
         const helpMenuPanel = new MenuPanel([{

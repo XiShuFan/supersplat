@@ -7,6 +7,7 @@ import { BottomToolbar } from './bottom-toolbar';
 import { ColorPanel } from './color-panel';
 import { ExportPopup } from './export-popup';
 import { ImageSettingsDialog } from './image-settings-dialog';
+import { LogoSettingsDialog } from './logo-settings-dialog';
 import { localize, localizeInit } from './localization';
 import { Menu } from './menu';
 import { ModeToggle } from './mode-toggle';
@@ -84,6 +85,7 @@ class EditorUI {
 
         let fullprecision = '';
 
+        // TODO 鼠标双击选中点
         events.on('camera.focalPointPicked', (details: { position: Vec3 }) => {
             cursorLabel.text = `${details.position.x.toFixed(2)}, ${details.position.y.toFixed(2)}, ${details.position.z.toFixed(2)}`;
             fullprecision = `${details.position.x}, ${details.position.y}, ${details.position.z}`;
@@ -176,6 +178,9 @@ class EditorUI {
         // image settings
         const imageSettingsDialog = new ImageSettingsDialog(events);
 
+        // logo settings
+        const logoSettingsDialog = new LogoSettingsDialog(events);
+
         // video settings
         const videoSettingsDialog = new VideoSettingsDialog(events);
 
@@ -184,6 +189,7 @@ class EditorUI {
         topContainer.append(publishSettingsDialog);
         topContainer.append(imageSettingsDialog);
         topContainer.append(videoSettingsDialog);
+        topContainer.append(logoSettingsDialog);
 
         appContainer.append(editorContainer);
         appContainer.append(topContainer);
@@ -229,11 +235,20 @@ class EditorUI {
             }
         });
 
+        // TODO 输出渲染图片
         events.function('show.imageSettingsDialog', async () => {
             const imageSettings = await imageSettingsDialog.show();
 
             if (imageSettings) {
                 await events.invoke('render.image', imageSettings);
+            }
+        });
+
+        events.function('show.logoSettingsDialog', async () => {
+            const logoSettings = await logoSettingsDialog.show();
+
+            if (logoSettings) {
+                console.log('logo settings:', logoSettings);
             }
         });
 

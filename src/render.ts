@@ -182,6 +182,85 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         }
     });
 
+
+
+    events.function('render.image.and.return', async (imageSettings: ImageSettings) => {
+        events.fire('startSpinner');
+
+        try {
+            const { width, height, transparentBg, showDebug } = imageSettings;
+            const bgClr = events.invoke('bgClr');
+
+            // start rendering to offscreen buffer only
+            scene.camera.startOffscreenMode(width, height);
+            scene.camera.renderOverlays = showDebug;
+            scene.gizmoLayer.enabled = false;
+            if (!transparentBg) {
+                scene.camera.entity.camera.clearColor.copy(bgClr);
+            }
+
+            // render the next frame
+            scene.forceRender = true;
+
+            // for render to finish
+            await postRender();
+
+            // cpu-side buffer to read pixels into
+            const data = new Uint8Array(width * height * 4);
+
+            const { renderTarget } = scene.camera.entity.camera;
+            const { workRenderTarget } = scene.camera;
+
+            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+
+            // read the rendered frame
+            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
+
+            // the render buffer contains premultiplied alpha. so apply background color.
+            if (!transparentBg) {
+                // @ts-ignore
+                const pixels = new Uint8ClampedArray(data.buffer);
+
+                const { r, g, b } = bgClr;
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const a = 255 - pixels[i + 3];
+                    pixels[i + 0] += r * a;
+                    pixels[i + 1] += g * a;
+                    pixels[i + 2] += b * a;
+                    pixels[i + 3] = 255;
+                }
+            }
+
+            // construct the png compressor
+            if (!compressor) {
+                compressor = new PngCompressor();
+            }
+
+            const arrayBuffer = await compressor.compress(
+                new Uint32Array(data.buffer),
+                width,
+                height
+            );
+
+            return arrayBuffer;
+        } catch (error) {
+            await events.invoke('showPopup', {
+                type: 'error',
+                header: localize('render.failed'),
+                message: `'${error.message ?? error}'`
+            });
+        } finally {
+            scene.camera.endOffscreenMode();
+            scene.camera.renderOverlays = true;
+            scene.gizmoLayer.enabled = true;
+            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+
+            events.fire('stopSpinner');
+        }
+    });
+
+
+
     events.function('render.video', async (videoSettings: VideoSettings, fileStream: FileSystemWritableFileStream) => {
         events.fire('progressStart', localize('panel.render.render-video'));
 

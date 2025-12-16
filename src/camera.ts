@@ -294,7 +294,8 @@ class Camera extends Element {
 
         // picker
         const { width, height } = this.scene.targetSize;
-        this.picker = new Picker(this.scene.app, width, height);
+        // TODO picker开启深度选择
+        this.picker = new Picker(this.scene.app, width, height, true);
 
         // override buffer allocation to use our render target
         this.picker.allocateRenderTarget = () => { };

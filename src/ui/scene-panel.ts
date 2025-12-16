@@ -58,6 +58,7 @@ class ScenePanel extends Container {
         sceneHeader.append(sceneNew);
 
         sceneImport.on('click', async () => {
+            console.log("scene panel import scene");
             await events.invoke('scene.import');
         });
 

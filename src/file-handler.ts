@@ -249,6 +249,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     };
 
     // import a single file, .ply, .splat or meta.json
+    // TODO 加载单个文件
     const importFile = async (file: ImportFile, animationFrame: boolean) => {
         try {
             const model = await scene.assetLoader.load({

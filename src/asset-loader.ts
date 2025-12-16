@@ -50,6 +50,7 @@ class AssetLoader {
                 asset = wrap(await loadLcc(assetSource));
                 orientation = lccOrientation;
             } else {
+                // TODO 加载ply文件
                 asset = await loadGsplat(this.app.assets, assetSource);
             }
 

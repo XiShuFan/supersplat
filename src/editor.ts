@@ -191,7 +191,7 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     });
 
     // camera.focus
-
+    // TODO 相机聚焦
     events.on('camera.focus', () => {
         const splat = selectedSplats()[0];
         if (splat) {
