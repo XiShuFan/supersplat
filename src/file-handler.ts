@@ -8,6 +8,7 @@ import { Scene } from './scene';
 import { DownloadWriter, FileStreamWriter } from './serialize/writer';
 import { Splat } from './splat';
 import { serializePly, serializePlyCompressed, SerializeSettings, serializeSplat, serializeViewer, ViewerExportSettings } from './splat-serialize';
+import { serializePcdPly } from './pointcloud-serialize';
 import { localize } from './ui/localization';
 
 // ts compiler and vscode find this type, but eslint does not
@@ -529,6 +530,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     types: [filePickerTypes[fileType]],
                     suggestedName: options.filename
                 });
+                // 写入
                 await events.invoke('scene.write', fileType, options, await fileHandle.createWritable());
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -558,6 +560,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
 
                 switch (fileType) {
                     case 'ply':
+                        // 写入 ply 文件
                         await serializePly(splats, serializeSettings, writer);
                         break;
                     case 'compressedPly':
@@ -573,6 +576,52 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                         await serializeViewer(splats, serializeSettings, viewerExportSettings, writer);
                         break;
                 }
+            } finally {
+                await writer.close();
+            }
+
+        } catch (error) {
+            await events.invoke('showPopup', {
+                type: 'error',
+                header: localize('popup.error-loading'),
+                message: `${error.message ?? error} while saving file`
+            });
+        } finally {
+            events.fire('stopSpinner');
+        }
+    });
+
+
+    events.function('scene.point.cloud.export', async (points: Vec3[], colors: Vec3[]) => {
+
+        const hasFilePicker = !!window.showSaveFilePicker;
+
+        const selected = events.invoke('selection') as Splat;
+        const filename = `${removeExtension(selected?.name ?? 'SuperSplat')}_pcd.ply`;
+
+        try {
+            await events.invoke('scene.point.cloud.write', filename, points, colors, null);
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error);
+            }
+        }
+    });
+
+
+    events.function('scene.point.cloud.write', async (filename: string, points: Vec3[], colors: Vec3[], stream?: FileSystemWritableFileStream) => {
+        events.fire('startSpinner');
+
+        try {
+            // setTimeout so spinner has a chance to activate
+            await new Promise<void>((resolve) => {
+                setTimeout(resolve);
+            });
+
+            const writer = stream ? new FileStreamWriter(stream) : new DownloadWriter(filename);
+
+            try {
+                await serializePcdPly(points, colors, writer, null, true);
             } finally {
                 await writer.close();
             }

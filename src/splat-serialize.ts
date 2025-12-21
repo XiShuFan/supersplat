@@ -467,6 +467,7 @@ class SingleSplat {
     }
 }
 
+// 写入高斯ply文件
 const serializePly = async (splats: Splat[], serializeSettings: SerializeSettings, writer: Writer, progress?: ProgressFunc): Promise<any> => {
     const { maxSHBands, keepStateData } = serializeSettings;
 

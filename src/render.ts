@@ -20,8 +20,15 @@ type ImageBuffers = {
     width: number;
     height: number;
     buffer: ArrayBuffer;
+    rgba: Uint8Array;
     url: string;
 }
+
+type PixelHit = {
+    splat: Splat;       // 距离最近的高斯
+    position: Vec3;     // 空间点位置
+    distance: number;   // 距离
+};
 
 type VideoSettings = {
     startFrame: number;
@@ -239,6 +246,8 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 }
             }
 
+            const rgba = data.buffer.slice(0);
+
             // construct the png compressor
             if (!compressor) {
                 compressor = new PngCompressor();
@@ -250,7 +259,8 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 height
             );
 
-            return arrayBuffer;
+            // 返回图片rgba数据
+            return {rgba: rgba, arrayBuffer: arrayBuffer};
         } catch (error) {
             await events.invoke('showPopup', {
                 type: 'error',
@@ -270,22 +280,16 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
     events.function('render.point.and.download', async (imageBuffers: ImageBuffers) => {
         try {
-            const { width, height, buffer: imageArrayBuffer, url: previewImageUrl } = imageBuffers;
+            const { width, height, buffer: imageArrayBuffer, rgba: rgba, url: previewImageUrl } = imageBuffers;
             const camera: Camera = events.invoke("targetCamera");
-            const worldLayer = camera.scene.app.scene.layers.getLayerByName('World');
-            camera.picker.resize(width, height);
-            camera.picker.prepare(camera.entity.camera, camera.scene.app.scene, [worldLayer]);
 
-            // 获取深度信息
-            camera.picker.getWorldPointAsync(width / 2, height / 2).then((worldPoint) => {
-                if (worldPoint) {
-                    // worldPoint is a Vec3 in world space
-                    console.log('Clicked at:', worldPoint);
-                } else {
-                    // No object was clicked (background)
-                    console.log('Clicked on empty space');
-                }
-            });
+            console.log("width", width, "height", height);
+            const clientWidth = camera.scene.canvas.clientWidth;
+            const clientHeight = camera.scene.canvas.clientHeight;
+            const targetWidth = camera.scene.targetSize.width;
+            const targetHeight = camera.scene.targetSize.height;
+            console.log("client width", clientWidth, "client height", clientHeight);
+            console.log("target width", targetWidth, "target height", targetHeight);
 
             // construct filename
             const selected = events.invoke('selection') as Splat;
@@ -293,6 +297,74 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             // download
             downloadFile(imageArrayBuffer, filename);
+
+            // 获取表面点云
+
+            // ---------- 数据 ----------
+            const pixels = new Uint8ClampedArray(rgba);
+            const points: Vec3[] = [];
+            const colors: Vec3[] = [];
+
+            // ---------- 1️⃣ 同步阶段：快速筛选像素 ----------
+            type Candidate = {
+                x: number;
+                y: number;
+                r: number;
+                g: number;
+                b: number;
+            };
+
+            const candidates: Candidate[] = [];
+
+            for (let y = 0; y < height; y ++) {
+                for (let x = 0; x < width; x ++) {
+                    const idx = (y * width + x) * 4;
+                    const a = pixels[idx + 3];
+                    if (a === 0) continue;
+
+                    const r = pixels[idx + 0];
+                    const g = pixels[idx + 1];
+                    const b = pixels[idx + 2];
+                    if ((r | g | b) === 0) continue; // 比 r===0 && g===0 && b===0 更快
+
+                    candidates.push({ x, y, r, g, b });
+                }
+            }
+
+            console.log("candidate num:", candidates.length);
+
+            // TODO 慢方法
+            // for (let i = 0; i < candidates.length; i += 10) {
+            //     let c = candidates[i];
+            //     const result = camera.intersect(c.x / width * clientWidth, c.y / height * clientHeight);
+            //     if (result != null) {
+            //         points.push(result.position);
+            //         colors.push(new Vec3(
+            //             c.r / 255,
+            //             c.g / 255,
+            //             c.b / 255
+            //         ));
+            //     }
+            // }
+
+            // 批量获取三维点
+            const worldPoints: PixelHit[] = camera.getWorldPointsInCurrentFrame();
+            for (let i = 0; i < candidates.length; i ++) {
+                let c = candidates[i];
+                const point: PixelHit = worldPoints[c.y * width + c.x];
+                if (point.splat) {
+                    points.push(point.position);
+                    colors.push(new Vec3(
+                        c.r / 255,
+                        c.g / 255,
+                        c.b / 255
+                    ));
+                }
+            }
+
+            console.log("end point cloud, point num:", points.length);
+            // 触发下载点云文件
+            events.invoke('scene.point.cloud.export', points, colors);
 
             return true;
         } catch (error) {
@@ -536,4 +608,4 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
     });
 };
 
-export { ImageSettings, ImageBuffers, VideoSettings, registerRenderEvents };
+export { ImageSettings, ImageBuffers, PixelHit, VideoSettings, registerRenderEvents };

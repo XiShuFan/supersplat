@@ -32,6 +32,7 @@ import { Element, ElementType } from './element';
 import { Serializer } from './serializer';
 import { Splat } from './splat';
 import { TweenValue } from './tween-value';
+import { PixelHit } from './render';
 
 // calculate the forward vector given azimuth and elevation
 const calcForwardVec = (result: Vec3, azim: number, elev: number) => {
@@ -567,6 +568,72 @@ class Camera extends Element {
             ray.set(cameraPos, vec);
         }
     }
+
+    // 获取当前帧像素对应的世界坐标
+    getWorldPointsInCurrentFrame() {
+        const { scene } = this;
+
+        const target = scene.canvas;
+
+        // 应该可以选择某个特定的splat
+        const splats = scene.getElementsByType(ElementType.splat);
+
+        // 初始化每个像素对应的空间位置
+        const worldPoints: PixelHit[] = new Array(scene.targetSize.width * scene.targetSize.height);
+        for (let i = 0; i < worldPoints.length; i++) {
+            worldPoints[i] = {
+                splat: null,
+                position: new Vec3(),
+                distance: 0
+            };
+        }
+
+        console.log("splat num:", splats.length);
+        for (let i = 0; i < splats.length; ++i) {
+            const splat = splats[i] as Splat;
+
+            this.pickPrep(splat, 'set');
+            const pickIds = this.pickRect(0, 0, scene.targetSize.width, scene.targetSize.height);
+
+            for (let sy = 0; sy < scene.targetSize.height; sy++) {
+                for (let sx = 0; sx < scene.targetSize.width; sx++) {
+                    const screenX = sx / scene.targetSize.width * target.clientWidth;
+                    const screenY = sy / scene.targetSize.height * target.clientHeight;
+
+                    const local_ray = new Ray();
+                    this.getRay(screenX, screenY, local_ray);
+
+                    // 像素索引
+                    const pixelIdx = Math.floor(sy * scene.targetSize.width + sx);
+                    let pickId: number = pickIds[pixelIdx];
+
+                    if (pickId !== -1) {
+                        const local_vec = new Vec3();
+                        const local_vecb = new Vec3();
+                        const local_plane = new Plane();
+
+                        splat.calcSplatWorldPosition(pickId, local_vec);
+
+                        // create a plane at the world position facing perpendicular to the camera
+                        local_plane.setFromPointNormal(local_vec, this.entity.forward);
+
+                        // find intersection
+                        if (local_plane.intersectsRay(local_ray, local_vec)) {
+                            const distance = local_vecb.sub2(local_vec, local_ray.origin).length();
+                            if (!worldPoints[pixelIdx].splat || distance < worldPoints[pixelIdx].distance) {
+                                worldPoints[pixelIdx].distance = distance;
+                                worldPoints[pixelIdx].position.copy(local_vec);
+                                worldPoints[pixelIdx].splat = splat;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return worldPoints;
+    }
+
 
     // intersect the scene at the given screen coordinate
     intersect(screenX: number, screenY: number) {

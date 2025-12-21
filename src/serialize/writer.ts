@@ -177,4 +177,25 @@ class ProgressWriter implements Writer {
     }
 }
 
-export { Writer, FileStreamWriter, BufferWriter, DownloadWriter, GZipWriter, ProgressWriter };
+
+class ProgressASCIIWriter implements Writer {
+    write: (data: Uint8Array) => void;
+    close: () => any;
+
+    constructor(writer: Writer, totalBytes: number, progress?: (progress: number, total: number) => void) {
+        let cursor = 0;
+
+        this.write = async (data: Uint8Array) => {
+            cursor += data.byteLength;
+            await writer.write(data);
+            progress?.(cursor, totalBytes);
+        };
+
+        this.close = () => {
+            progress?.(cursor, totalBytes);
+            return totalBytes;
+        };
+    }
+}
+
+export { Writer, FileStreamWriter, BufferWriter, DownloadWriter, GZipWriter, ProgressWriter, ProgressASCIIWriter };

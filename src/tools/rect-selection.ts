@@ -81,6 +81,7 @@ class RectSelection {
 
                 if (dragMoved) {
                     // rect select
+                    console.log("select.rect");
                     events.fire(
                         'select.rect',
                         e.shiftKey ? 'add' : (e.ctrlKey ? 'remove' : 'set'), {
@@ -89,6 +90,7 @@ class RectSelection {
                         });
                 } else {
                     // pick
+                    console.log("select.point");
                     events.fire(
                         'select.point',
                         e.shiftKey ? 'add' : (e.ctrlKey ? 'remove' : 'set'),

@@ -78,7 +78,8 @@ class LogoSettingsDialog extends Container {
         // transparent background
 
         const transparentBgLabel = new Label({ class: 'label', text: localize('popup.render-image.transparent-bg') });
-        const transparentBgBoolean = new BooleanInput({ class: 'boolean', value: false });
+        // 默认透明背景
+        const transparentBgBoolean = new BooleanInput({ class: 'boolean', value: true });
         const transparentBgRow = new Container({ class: 'row' });
         transparentBgRow.append(transparentBgLabel);
         transparentBgRow.append(transparentBgBoolean);
@@ -149,6 +150,7 @@ class LogoSettingsDialog extends Container {
         // 渲染图片结果
         let previewImageUrl: string = null;
         let imageArrayBuffer: ArrayBuffer = null;
+        let rgba: Uint8Array = null;
 
         let targetSize: { width: number, height: number };
 
@@ -200,11 +202,13 @@ class LogoSettingsDialog extends Container {
             };
 
             // 调用外部 await 方法
-            const arrayBuffer = await events.invoke("render.image.and.return", imageSettings);
-            imageArrayBuffer = arrayBuffer;
+            const renderResult = await events.invoke("render.image.and.return", imageSettings);
+            
+            rgba = renderResult.rgba;
+            imageArrayBuffer = renderResult.arrayBuffer;
 
             // ArrayBuffer -> Blob -> ObjectURL
-            const blob = new Blob([arrayBuffer], { type: 'image/png' });
+            const blob = new Blob([imageArrayBuffer], { type: 'image/png' });
             previewImageUrl = URL.createObjectURL(blob);
 
             console.log("预览图片 URL:", previewImageUrl);
@@ -249,6 +253,7 @@ class LogoSettingsDialog extends Container {
                         width,
                         height,
                         buffer: imageArrayBuffer,
+                        rgba: rgba,
                         url: previewImageUrl
                     };
 
