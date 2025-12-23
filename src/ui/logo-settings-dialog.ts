@@ -100,20 +100,106 @@ class LogoSettingsDialog extends Container {
         content.append(transparentBgRow);
         content.append(showDebugRow);
 
+        // 占位图片
+        const placeholderUrl = new URL( '../../static/images/preview-placeholder.png', import.meta.url ).toString();
+
+        // preview row (image + buttons)
+        const previewRow = new Container({
+            class: 'preview-row'
+        });
+        previewRow.dom.style.display = 'flex';
+        previewRow.dom.style.flexDirection = 'row';
+        previewRow.dom.style.flexWrap = 'nowrap';
+        previewRow.dom.style.gap = '12px';
+        previewRow.dom.style.marginTop = '12px';
+        previewRow.dom.style.alignItems = 'center';
+
         // image preview
         const previewImage = new Element({
             dom: document.createElement('img') as HTMLImageElement,
-            class: 'image-preview'
+            class: 'image'
         });
-        previewImage.dom.style.maxWidth = '100%';
-        previewImage.dom.style.marginTop = '8px';
-        const placeholderUrl = new URL(
-            '../../static/images/preview-placeholder.png',
-            import.meta.url
-        ).toString();
+        previewImage.dom.style.display = 'block';
+        previewImage.dom.style.width = '240px';     // ✅ 固定宽度
+        previewImage.dom.style.height = 'auto';
+        previewImage.dom.style.flexShrink = '0';
+        previewImage.dom.style.border = '1px solid #333';
         (previewImage.dom as HTMLImageElement).src = placeholderUrl;
 
-        content.append(previewImage);
+        // right-side actions
+        const previewActions = new Container({
+            class: 'preview-actions'
+        });
+        previewActions.dom.style.display = 'flex';
+        previewActions.dom.style.flexDirection = 'column';
+        previewActions.dom.style.gap = '8px';
+        previewActions.dom.style.minWidth = '96px'; // ✅ 防止按钮被挤
+        previewActions.dom.style.flexShrink = '0';
+
+        const previewButton = new Button({
+            class: 'button',
+            text: 'Preview'
+        });
+
+        const downloadButton = new Button({
+            class: 'button',
+            text: 'Download'
+        });
+
+        previewActions.append(previewButton);
+        previewActions.append(downloadButton);
+
+        previewRow.append(previewImage);
+        previewRow.append(previewActions);
+
+        content.append(previewRow);
+
+
+        // upload
+        const uploadRow = new Container({
+            class: 'upload-row'
+        });
+        uploadRow.dom.style.display = 'flex';
+        uploadRow.dom.style.flexDirection = 'row';
+        uploadRow.dom.style.flexWrap = 'nowrap';
+        uploadRow.dom.style.gap = '12px';
+        uploadRow.dom.style.marginTop = '12px';
+        uploadRow.dom.style.alignItems = 'center';
+
+        // upload image
+        const uploadImage = new Element({
+            dom: document.createElement('img') as HTMLImageElement,
+            class: 'image'
+        });
+        uploadImage.dom.style.display = 'block';
+        uploadImage.dom.style.width = '240px';     // ✅ 固定宽度
+        uploadImage.dom.style.height = 'auto';
+        uploadImage.dom.style.flexShrink = '0';
+        uploadImage.dom.style.border = '1px solid #333';
+        (uploadImage.dom as HTMLImageElement).src = placeholderUrl;
+
+        // right-side actions
+        const uploadActions = new Container({
+            class: 'upload-actions'
+        });
+        uploadActions.dom.style.display = 'flex';
+        uploadActions.dom.style.flexDirection = 'column';
+        uploadActions.dom.style.gap = '8px';
+        uploadActions.dom.style.minWidth = '96px'; // ✅ 防止按钮被挤
+        uploadActions.dom.style.flexShrink = '0';
+
+        const uploadButton = new Button({
+            class: 'button',
+            text: 'Upload'
+        });
+
+        uploadActions.append(uploadButton);
+
+        uploadRow.append(uploadImage);
+        uploadRow.append(uploadActions);
+
+        content.append(uploadRow);
+
 
         // footer
 
@@ -131,14 +217,6 @@ class LogoSettingsDialog extends Container {
 
         footer.append(cancelButton);
         footer.append(okButton);
-
-        // TODO 预览按钮
-        const previewButton = new Button({
-            class: 'button',
-            text: 'Preview'
-        });
-
-        footer.append(previewButton);
 
 
         dialog.append(header);
@@ -215,6 +293,21 @@ class LogoSettingsDialog extends Container {
 
             // 显示到面板
             (previewImage.dom as HTMLImageElement).src = previewImageUrl;
+        });
+
+        // TODO 下载按钮点击事件
+        downloadButton.on('click', async() => {
+            await events.invoke("download.image", imageArrayBuffer);
+        });
+
+        // TODO 上传按钮点击事件
+        uploadButton.on('click', async() => {
+            const imported = await events.invoke('image.import');
+            if (imported) {
+                console.log("上传文件名:", imported.filename);
+                const url = URL.createObjectURL(imported.contents);
+                (uploadImage.dom as HTMLImageElement).src = url;
+            }
         });
 
         const keydown = (e: KeyboardEvent) => {

@@ -95,6 +95,15 @@ const allImportTypes = {
     }
 };
 
+const imageImportTypes: FilePickerAcceptType = {
+    description: 'Image Files',
+    accept: {
+        'image/png': ['.png'],
+        'image/jpeg': ['.jpg', '.jpeg']
+    }
+};
+
+
 // determine if all files share a common filename prefix followed by
 // a frame number, e.g. "frame0001.ply", "frame0002.ply", etc.
 const isPlySequence = (filenames: string[]) => {
@@ -477,6 +486,39 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             }
         }
     });
+
+
+    events.function('image.import', async () => {
+        try {
+            const handles = await window.showOpenFilePicker({
+                id: 'SuperSplatImageImport',
+                multiple: false,                // 一般导入单张图片
+                excludeAcceptAllOption: false,
+                types: [imageImportTypes]
+            });
+
+            if (!handles) {
+                return null;
+            }
+
+            const handle = handles[0];
+            const file = await handle.getFile();
+
+            const result = {
+                filename: file.name,
+                contents: file            // File 对象
+            };
+
+            return result;
+
+        } catch (error: any) {
+            if (error.name !== 'AbortError') {
+                console.error(error);
+            }
+            return null;
+        }
+    });
+
 
     // open a folder
     events.function('scene.openAnimation', async () => {

@@ -278,6 +278,25 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
     });
 
 
+    events.function('download.image', async (imageArrayBuffer: ArrayBuffer) => {
+        try {
+            // construct filename
+            const selected = events.invoke('selection') as Splat;
+            const filename = `${removeExtension(selected?.name ?? 'SuperSplat')}-image.png`;
+
+            // download
+            downloadFile(imageArrayBuffer, filename);
+            return true;
+        } catch (error) {
+            await events.invoke('showPopup', {
+                type: 'error',
+                header: localize('download.image'),
+                message: `'${error.message ?? error}'`
+            });
+        }
+    });
+
+
     events.function('render.point.and.download', async (imageBuffers: ImageBuffers) => {
         try {
             const { width, height, buffer: imageArrayBuffer, rgba: rgba, url: previewImageUrl } = imageBuffers;
@@ -290,13 +309,6 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             const targetHeight = camera.scene.targetSize.height;
             console.log("client width", clientWidth, "client height", clientHeight);
             console.log("target width", targetWidth, "target height", targetHeight);
-
-            // construct filename
-            const selected = events.invoke('selection') as Splat;
-            const filename = `${removeExtension(selected?.name ?? 'SuperSplat')}-image.png`;
-
-            // download
-            downloadFile(imageArrayBuffer, filename);
 
             // 获取表面点云
 
