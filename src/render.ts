@@ -22,6 +22,7 @@ type ImageBuffers = {
     buffer: ArrayBuffer;
     rgba: Uint8Array;
     url: string;
+    uploadRgba: Uint8Array;
 }
 
 type PixelHit = {
@@ -299,7 +300,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
     events.function('render.point.and.download', async (imageBuffers: ImageBuffers) => {
         try {
-            const { width, height, buffer: imageArrayBuffer, rgba: rgba, url: previewImageUrl } = imageBuffers;
+            const { width, height, buffer: imageArrayBuffer, rgba: rgba, url: previewImageUrl, uploadRgba: uploadRgba } = imageBuffers;
             const camera: Camera = events.invoke("targetCamera");
 
             console.log("width", width, "height", height);
@@ -313,7 +314,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // 获取表面点云
 
             // ---------- 数据 ----------
-            const pixels = new Uint8ClampedArray(rgba);
+            const pixels = new Uint8ClampedArray(uploadRgba);
             const points: Vec3[] = [];
             const colors: Vec3[] = [];
 

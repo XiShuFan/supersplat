@@ -229,6 +229,8 @@ class LogoSettingsDialog extends Container {
         let previewImageUrl: string = null;
         let imageArrayBuffer: ArrayBuffer = null;
         let rgba: Uint8Array = null;
+        // 上传图片结果
+        let uploadRgba: Uint8Array = null;
 
         let targetSize: { width: number, height: number };
 
@@ -301,13 +303,29 @@ class LogoSettingsDialog extends Container {
         });
 
         // TODO 上传按钮点击事件
-        uploadButton.on('click', async() => {
+        uploadButton.on('click', async () => {
             const imported = await events.invoke('image.import');
-            if (imported) {
-                console.log("上传文件名:", imported.filename);
-                const url = URL.createObjectURL(imported.contents);
-                (uploadImage.dom as HTMLImageElement).src = url;
-            }
+            if (!imported) return;
+
+            console.log("上传文件名:", imported.filename);
+
+            // 显示到页面（uploadImage已经处理了）
+            (uploadImage.dom as HTMLImageElement).src = URL.createObjectURL(imported.contents);
+
+            // 获取 RGBA
+            const bitmap = await createImageBitmap(imported.contents);
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.drawImage(bitmap, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            uploadRgba = new Uint8Array(imageData.data); // Uint8ClampedArray, 每4个值是 RGBA
+            console.log(uploadRgba.length);
+
+            bitmap.close?.(); // 释放 ImageBitmap
         });
 
         const keydown = (e: KeyboardEvent) => {
@@ -347,7 +365,8 @@ class LogoSettingsDialog extends Container {
                         height,
                         buffer: imageArrayBuffer,
                         rgba: rgba,
-                        url: previewImageUrl
+                        url: previewImageUrl,
+                        uploadRgba: uploadRgba
                     };
 
                     resolve(imageBuffers);
