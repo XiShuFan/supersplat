@@ -320,6 +320,25 @@ class Splat extends Element {
         return true;
     }
 
+    // TODO 获取高斯中心点坐标，不进行坐标变换
+    calcSplatWorldPositionWoTransform(splatId: number, result: Vec3) {
+        if (splatId >= this.splatData.numSplats) {
+            return false;
+        }
+
+        // use centers data, which are updated when edits occur
+        const { sorter } = this.entity.gsplat.instance;
+        const { centers } = sorter;
+
+        result.set(
+            centers[splatId * 3 + 0],
+            centers[splatId * 3 + 1],
+            centers[splatId * 3 + 2]
+        );
+
+        return true;
+    }
+
     add() {
         // add the entity to the scene
         this.scene.contentRoot.addChild(this.entity);

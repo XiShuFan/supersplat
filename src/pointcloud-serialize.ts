@@ -138,5 +138,167 @@ const serializePcdPly = async (
 };
 
 
+const RGB2SH = (colors: Vec3[]): Vec3[] => {
+    const C0 = 0.28209479177387814;
+    return colors.map(c => (new Vec3(
+        (c.x - 0.5) / C0,
+        (c.y - 0.5) / C0,
+        (c.z - 0.5) / C0
+    )));
+};
 
-export { serializePcdPly };
+function inverseSigmoid(x: number): number {
+    // 数值稳定处理：避免 x=0 或 x=1 时 log(0) 或除零
+    const eps = 1e-7;
+    x = Math.max(eps, Math.min(1 - eps, x));
+    return Math.log(x / (1 - x));
+}
+
+
+
+// 输出高斯 PLY 文件（符合 Gaussian Splatting 标准格式）
+const serializeGaussianPly = async (
+    points: Vec3[],
+    colors: Vec3[],
+    scales: Vec3[],
+    writer: Writer,
+    progress?: ProgressFunc,
+    ascii: boolean = false
+): Promise<boolean> => {
+
+    if (
+        points.length !== colors.length ||
+        points.length !== scales.length
+    ) {
+        throw new Error('All input arrays must have the same length');
+    }
+
+    const vertexCount = points.length;
+
+    const shCoeffs: Vec3[] = RGB2SH(colors);
+    const opacities: number[] = Array(vertexCount).fill(inverseSigmoid(0.9));
+    scales = scales.map(s => (new Vec3(
+        Math.log(s.x),
+        Math.log(s.y),
+        Math.log(s.z),
+    )))
+
+    // ---------- header ----------
+    const headerLines = [
+        'ply',
+        `format ${ascii ? 'ascii 1.0' : 'binary_little_endian 1.0'}`,
+        `element vertex ${vertexCount}`,
+        'property float x',
+        'property float y',
+        'property float z',
+        'property float f_dc_0',
+        'property float f_dc_1',
+        'property float f_dc_2',
+        'property float opacity',
+        'property float scale_0',
+        'property float scale_1',
+        'property float scale_2',
+        'property float rot_0',
+        'property float rot_1',
+        'property float rot_2',
+        'property float rot_3',
+        'end_header\n'
+    ];
+
+    const headerText = headerLines.join('\n');
+    const encoder = new TextEncoder();
+    const header = encoder.encode(headerText);
+
+    const BYTES_PER_POINT = 4 * 14; // 14 floats × 4 bytes
+    let totalBytes: number;
+    let progressWriter: Writer;
+
+    if (ascii) {
+        totalBytes = header.byteLength + vertexCount * 200; // 粗略估计
+        progressWriter = new ProgressASCIIWriter(writer, totalBytes, progress);
+    } else {
+        totalBytes = header.byteLength + vertexCount * BYTES_PER_POINT;
+        progressWriter = new ProgressWriter(writer, totalBytes, progress);
+    }
+
+    await progressWriter.write(header);
+
+    // ---------- body ----------
+    if (ascii) {
+        const CHUNK_POINTS = 4096;
+        let lines: string[] = [];
+
+        for (let i = 0; i < vertexCount; i++) {
+            const p = points[i];
+            const sh = shCoeffs[i];
+            const opacity = opacities[i];
+            const s = scales[i];
+
+            lines.push(
+                `${p.x} ${p.y} ${p.z} ` +
+                `${sh.x} ${sh.y} ${sh.z} ` +
+                `${opacity} ` +
+                `${s.x} ${s.y} ${s.z} ` +
+                `0.0 0.0 0.0 0.0`
+            );
+
+            if (lines.length === CHUNK_POINTS) {
+                const chunk = encoder.encode(lines.join('\n') + '\n');
+                await progressWriter.write(chunk);
+                lines.length = 0;
+            }
+        }
+
+        if (lines.length > 0) {
+            const chunk = encoder.encode(lines.join('\n') + '\n');
+            await progressWriter.write(chunk);
+        }
+    } else {
+        const CHUNK_POINTS = 4096;
+        const buffer = new Uint8Array(CHUNK_POINTS * BYTES_PER_POINT);
+        const view = new DataView(buffer.buffer);
+        let offset = 0;
+
+        for (let i = 0; i < vertexCount; i++) {
+            const p = points[i];
+            const sh = shCoeffs[i];
+            const opacity = opacities[i];
+            const s = scales[i];
+
+            const setF32 = (v: number) => {
+                view.setFloat32(offset, v, true);
+                offset += 4;
+            };
+
+            setF32(p.x);
+            setF32(p.y);
+            setF32(p.z);
+            setF32(sh.x);
+            setF32(sh.y);
+            setF32(sh.z);
+            setF32(opacity);
+            setF32(s.x);
+            setF32(s.y);
+            setF32(s.z);
+            setF32(0.0);
+            setF32(0.0);
+            setF32(0.0);
+            setF32(0.0);
+
+            if (offset === buffer.byteLength) {
+                await progressWriter.write(buffer);
+                offset = 0;
+            }
+        }
+
+        if (offset > 0) {
+            await progressWriter.write(buffer.subarray(0, offset));
+        }
+    }
+
+    await progressWriter.close();
+    return true;
+};
+
+
+export { serializePcdPly, serializeGaussianPly };

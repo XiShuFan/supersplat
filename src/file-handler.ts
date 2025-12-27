@@ -8,7 +8,7 @@ import { Scene } from './scene';
 import { DownloadWriter, FileStreamWriter } from './serialize/writer';
 import { Splat } from './splat';
 import { serializePly, serializePlyCompressed, SerializeSettings, serializeSplat, serializeViewer, ViewerExportSettings } from './splat-serialize';
-import { serializePcdPly } from './pointcloud-serialize';
+import { serializePcdPly, serializeGaussianPly } from './pointcloud-serialize';
 import { localize } from './ui/localization';
 
 // ts compiler and vscode find this type, but eslint does not
@@ -261,6 +261,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     // import a single file, .ply, .splat or meta.json
     // TODO 加载单个文件
     const importFile = async (file: ImportFile, animationFrame: boolean) => {
+        console.log("加载ply")
         try {
             const model = await scene.assetLoader.load({
                 contents: file.contents,
@@ -377,6 +378,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     await events.invoke('doc.load', files[i].contents ?? (await fetch(files[i].url)).arrayBuffer(), files[i].handle);
                 } else if (['.ply', '.splat', '.sog'].some(ext => filename.endsWith(ext))) {
                     // load gaussian splat model
+                    // 加载ply
                     result.push(await importFile(files[i], animationFrame));
                 } else if (filename.endsWith('images.txt')) {
                     // load colmap frames
@@ -392,6 +394,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     };
 
     events.function('import', (files: ImportFile[], animationFrame = false) => {
+        console.log("invoke import");
         return importFiles(files, animationFrame);
     });
 
@@ -453,6 +456,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         if (fileSelector) {
             fileSelector.click();
         } else {
+            console.log("invoke scene.import");
             try {
                 const handles = await window.showOpenFilePicker({
                     id: 'SuperSplatFileImport',
@@ -476,7 +480,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                         contents: await handles[i].getFile()
                     });
                 }
-
+                
+                // 复用导入方法
                 importFiles(files);
 
             } catch (error) {
@@ -634,7 +639,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
 
-    events.function('scene.point.cloud.export', async (points: Vec3[], colors: Vec3[]) => {
+    events.function('scene.point.cloud.export', async (points: Vec3[], colors: Vec3[], scales: Vec3[]) => {
 
         const hasFilePicker = !!window.showSaveFilePicker;
 
@@ -642,7 +647,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         const filename = `${removeExtension(selected?.name ?? 'SuperSplat')}_pcd.ply`;
 
         try {
-            await events.invoke('scene.point.cloud.write', filename, points, colors, null);
+            await events.invoke('scene.point.cloud.write', filename, points, colors, scales, null);
         } catch (error) {
             if (error.name !== 'AbortError') {
                 console.error(error);
@@ -651,7 +656,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
 
-    events.function('scene.point.cloud.write', async (filename: string, points: Vec3[], colors: Vec3[], stream?: FileSystemWritableFileStream) => {
+    events.function('scene.point.cloud.write', async (filename: string, points: Vec3[], colors: Vec3[], scales: Vec3[], stream?: FileSystemWritableFileStream) => {
         events.fire('startSpinner');
 
         try {
@@ -663,7 +668,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             const writer = stream ? new FileStreamWriter(stream) : new DownloadWriter(filename);
 
             try {
-                await serializePcdPly(points, colors, writer, null, true);
+                // await serializePcdPly(points, colors, writer, null, true);
+                await serializeGaussianPly(points, colors, scales, writer, null, false);
             } finally {
                 await writer.close();
             }

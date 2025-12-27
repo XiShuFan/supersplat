@@ -8,6 +8,7 @@ import { Scene } from './scene';
 import { Splat } from './splat';
 import { localize } from './ui/localization';
 import { Camera } from './camera';
+import { SelectOp } from './edit-ops';
 
 type ImageSettings = {
     width: number;
@@ -29,6 +30,7 @@ type PixelHit = {
     splat: Splat;       // 距离最近的高斯
     position: Vec3;     // 空间点位置
     distance: number;   // 距离
+    pickId: number;     // 对应的高斯id
 };
 
 type VideoSettings = {
@@ -297,6 +299,51 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
         }
     });
 
+    type Candidate = {
+        x: number;
+        y: number;
+        r: number;
+        g: number;
+        b: number;
+    };
+
+    function getLocalNeighborIndices(candidates: Candidate[]): number[][] {
+        const n = candidates.length;
+        if (n === 0) return [];
+
+        // 构建 (x, y) -> index 的哈希表
+        const posToIndex = new Map<string, number>();
+        for (let i = 0; i < n; i++) {
+            const c = candidates[i];
+            posToIndex.set(`${c.x},${c.y}`, i);
+        }
+
+        const neighborIndices: number[][] = [];
+
+        for (let i = 0; i < n; i++) {
+            const c = candidates[i];
+            const neighbors: number[] = [];
+
+            // 遍历 5x5 邻域（dx, dy ∈ [-2, 2]）
+            for (let dx = -2; dx <= 2; dx++) {
+                for (let dy = -2; dy <= 2; dy++) {
+                    if (dx === 0 && dy === 0) continue; // 跳过自身
+
+                    const nx = c.x + dx;
+                    const ny = c.y + dy;
+                    const idx = posToIndex.get(`${nx},${ny}`);
+                    if (idx !== undefined) {
+                        neighbors.push(idx);
+                    }
+                }
+            }
+
+            neighborIndices.push(neighbors);
+        }
+
+        return neighborIndices;
+    }
+
 
     events.function('render.point.and.download', async (imageBuffers: ImageBuffers) => {
         try {
@@ -315,18 +362,14 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             // ---------- 数据 ----------
             const pixels = new Uint8ClampedArray(uploadRgba);
+            const origin_pixels = new Uint8ClampedArray(rgba);
+            
             const points: Vec3[] = [];
             const colors: Vec3[] = [];
+            const scales: Vec3[] = [];
+            const pickIds: number[] = [];
 
             // ---------- 1️⃣ 同步阶段：快速筛选像素 ----------
-            type Candidate = {
-                x: number;
-                y: number;
-                r: number;
-                g: number;
-                b: number;
-            };
-
             const candidates: Candidate[] = [];
 
             for (let y = 0; y < height; y ++) {
@@ -340,9 +383,25 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                     const b = pixels[idx + 2];
                     if ((r | g | b) === 0) continue; // 比 r===0 && g===0 && b===0 更快
 
-                    candidates.push({ x, y, r, g, b });
+                    const origin_r = origin_pixels[idx + 0];
+                    const origin_g = origin_pixels[idx + 1];
+                    const origin_b = origin_pixels[idx + 2];
+                    // 使用容差判断是否“真正不同”
+                    const dr = Math.abs(r - origin_r);
+                    const dg = Math.abs(g - origin_g);
+                    const db = Math.abs(b - origin_b);
+                    const tolerance = 10;
+
+                    if (dr <= tolerance && dg <= tolerance && db <= tolerance) {
+                        continue; // 差异太小，跳过
+                    }
+
+                    candidates.push({ x, y: height - 1 - y, r, g, b });
                 }
             }
+
+
+            const neighbors = getLocalNeighborIndices(candidates);
 
             console.log("candidate num:", candidates.length);
 
@@ -363,21 +422,63 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // 批量获取三维点
             const worldPoints: PixelHit[] = camera.getWorldPointsInCurrentFrame();
             for (let i = 0; i < candidates.length; i ++) {
-                let c = candidates[i];
+                const neighborIndices = neighbors[i];
+                if (neighborIndices.length === 0) continue; // 没有邻居，跳过
+
+                const c = candidates[i];
                 const point: PixelHit = worldPoints[c.y * width + c.x];
-                if (point.splat) {
-                    points.push(point.position);
-                    colors.push(new Vec3(
-                        c.r / 255,
-                        c.g / 255,
-                        c.b / 255
-                    ));
+                if (!point.splat) continue; // 确保有效
+
+                // 计算当前点到所有邻居的 3D 距离，取最小值
+                let minDistSq = Infinity;
+                const p = point.position; // 假设是 { x, y, z }
+
+                for (const j of neighborIndices) {
+                    const neiCandidate = candidates[j];
+                    const neiPixelHit = worldPoints[neiCandidate.y * width + neiCandidate.x];
+                    if (!neiPixelHit.splat) continue;
+
+                    const q = neiPixelHit.position;
+                    const dx = p.x - q.x;
+                    const dy = p.y - q.y;
+                    const dz = p.z - q.z;
+                    const distSq = dx * dx + dy * dy + dz * dz;
+
+                    if (distSq < minDistSq) {
+                        minDistSq = distSq;
+                    }
                 }
+
+                // 如果没找到有效邻居，跳过
+                if (minDistSq === Infinity) continue;
+
+                // 计算 local_scale（仿 3DGS）
+                const dist = Math.sqrt(minDistSq);
+                const dist2 = Math.max(dist * dist, 1e-7); // 防止 log(0)
+                const local_scale = Math.sqrt(dist2);
+
+                // 保存结果
+                points.push(point.position);
+                colors.push(new Vec3(
+                    c.r / 255,
+                    c.g / 255,
+                    c.b / 255
+                ));
+                scales.push(new Vec3(local_scale, local_scale, local_scale));
+                pickIds.push(point.pickId);
             }
+
+            // TODO 高亮对应的高斯
+            // const selected = new Set<number>(pickIds);
+            // const filter = (i: number) => {
+            //     return selected.has(i);
+            // };
+            // events.fire('edit.add', new SelectOp(specSplat, 'set', filter));
+
 
             console.log("end point cloud, point num:", points.length);
             // 触发下载点云文件
-            events.invoke('scene.point.cloud.export', points, colors);
+            events.invoke('scene.point.cloud.export', points, colors, scales);
 
             return true;
         } catch (error) {

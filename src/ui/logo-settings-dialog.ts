@@ -146,8 +146,14 @@ class LogoSettingsDialog extends Container {
             text: 'Download'
         });
 
+        const preUploadButton = new Button({
+            class: 'button',
+            text: 'upload'
+        });
+
         previewActions.append(previewButton);
         previewActions.append(downloadButton);
+        previewActions.append(preUploadButton);
 
         previewRow.append(previewImage);
         previewRow.append(previewActions);
@@ -231,6 +237,7 @@ class LogoSettingsDialog extends Container {
         let rgba: Uint8Array = null;
         // 上传图片结果
         let uploadRgba: Uint8Array = null;
+        let uploadImageArrayBuffer: ArrayBuffer = null;
 
         let targetSize: { width: number, height: number };
 
@@ -301,6 +308,32 @@ class LogoSettingsDialog extends Container {
         downloadButton.on('click', async() => {
             await events.invoke("download.image", imageArrayBuffer);
         });
+
+        preUploadButton.on('click', async () => {
+            const imported = await events.invoke('image.import');
+            if (!imported) return;
+
+            console.log("上传文件名:", imported.filename);
+
+            // 显示到页面（uploadImage已经处理了）
+            (previewImage.dom as HTMLImageElement).src = URL.createObjectURL(imported.contents);
+
+            // 获取 RGBA
+            const bitmap = await createImageBitmap(imported.contents);
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.drawImage(bitmap, 0, 0);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            rgba = new Uint8Array(imageData.data); // Uint8ClampedArray, 每4个值是 RGBA
+            console.log(rgba.length);
+
+            bitmap.close?.(); // 释放 ImageBitmap
+        });
+
 
         // TODO 上传按钮点击事件
         uploadButton.on('click', async () => {

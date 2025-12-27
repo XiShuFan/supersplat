@@ -569,10 +569,32 @@ class Camera extends Element {
         }
     }
 
+
+    getMyRay(screenX: number, screenY: number, ray: Ray) {
+        const { entity, ortho, scene } = this;
+        const cameraPos = this.entity.getPosition();
+
+        // create the pick ray in world space
+        if (ortho) {
+            entity.camera.screenToWorld(screenX, screenY, -1.0, vec);
+            entity.camera.screenToWorld(screenX, screenY, 1.0, vecb);
+            vecb.sub(vec).normalize();
+            ray.set(vec, vecb);
+        } else {
+            entity.camera.screenToWorld(screenX, screenY, 1.0, vec);
+            vec.x = -vec.x;
+            vec.y = -vec.y;
+            const myCamPos = new Vec3(-cameraPos.x, -cameraPos.y, cameraPos.z);
+            vec.sub(myCamPos).normalize();
+            ray.set(myCamPos, vec);
+        }
+    }
+
     // 获取当前帧像素对应的世界坐标
     getWorldPointsInCurrentFrame() {
         const { scene } = this;
 
+        // HTMLCanvasElement
         const target = scene.canvas;
 
         // 应该可以选择某个特定的splat
@@ -584,7 +606,8 @@ class Camera extends Element {
             worldPoints[i] = {
                 splat: null,
                 position: new Vec3(),
-                distance: 0
+                distance: 0,
+                pickId: 0
             };
         }
 
@@ -601,21 +624,20 @@ class Camera extends Element {
                     const screenY = sy / scene.targetSize.height * target.clientHeight;
 
                     const local_ray = new Ray();
-                    this.getRay(screenX, screenY, local_ray);
+                    this.getMyRay(screenX, target.clientHeight - 1 - screenY, local_ray);
 
                     // 像素索引
-                    const pixelIdx = Math.floor(sy * scene.targetSize.width + sx);
+                    const pixelIdx = sy * scene.targetSize.width + sx;
                     let pickId: number = pickIds[pixelIdx];
 
                     if (pickId !== -1) {
                         const local_vec = new Vec3();
                         const local_vecb = new Vec3();
                         const local_plane = new Plane();
-
-                        splat.calcSplatWorldPosition(pickId, local_vec);
-
+                        
+                        splat.calcSplatWorldPositionWoTransform(pickId, local_vec);
                         // create a plane at the world position facing perpendicular to the camera
-                        local_plane.setFromPointNormal(local_vec, this.entity.forward);
+                        local_plane.setFromPointNormal(local_vec, local_ray.direction);
 
                         // find intersection
                         if (local_plane.intersectsRay(local_ray, local_vec)) {
@@ -624,6 +646,7 @@ class Camera extends Element {
                                 worldPoints[pixelIdx].distance = distance;
                                 worldPoints[pixelIdx].position.copy(local_vec);
                                 worldPoints[pixelIdx].splat = splat;
+                                worldPoints[pixelIdx].pickId = pickId;
                             }
                         }
                     }
