@@ -452,9 +452,20 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 // 如果没找到有效邻居，跳过
                 if (minDistSq === Infinity) continue;
 
+                // 当前点对应高斯的scale
+                const local_splat = point.splat as Splat;
+                const scale0 = local_splat.splatData.getProp('scale_0') as Float32Array;
+                const scale1 = local_splat.splatData.getProp('scale_1') as Float32Array;
+                const scale2 = local_splat.splatData.getProp('scale_2') as Float32Array;
+                const max_scale = new Vec3(
+                    Math.exp(scale0[i]),
+                    Math.exp(scale1[i]),
+                    Math.exp(scale2[i])
+                );
+
+
                 // 计算 local_scale（仿 3DGS）
-                const dist = Math.sqrt(minDistSq);
-                const dist2 = Math.max(dist * dist, 1e-7); // 防止 log(0)
+                const dist2 = Math.max(minDistSq, 1e-7);
                 const local_scale = Math.sqrt(dist2);
 
                 // 保存结果
@@ -464,7 +475,11 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                     c.g / 255,
                     c.b / 255
                 ));
-                scales.push(new Vec3(local_scale, local_scale, local_scale));
+                // 限制最大尺度
+                scales.push(new Vec3(
+                    Math.min(local_scale, max_scale.x), 
+                    Math.min(local_scale, max_scale.y), 
+                    Math.min(local_scale, max_scale.z)));
                 pickIds.push(point.pickId);
             }
 
