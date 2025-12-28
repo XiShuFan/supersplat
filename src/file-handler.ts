@@ -380,6 +380,10 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     // load gaussian splat model
                     // 加载ply
                     result.push(await importFile(files[i], animationFrame));
+                    // 校准第一次导入的商品
+                    if (!filename.startsWith('generate')) {
+                        await events.fire('camera.focus');
+                    }
                 } else if (filename.endsWith('images.txt')) {
                     // load colmap frames
                     await loadImagesTxt(files[i], events);
@@ -422,16 +426,17 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         document.body.append(fileSelector);
     }
 
+    // [关闭] 拖动导入模型
     // create the file drag & drop handler
-    CreateDropHandler(dropTarget, (entries, shift) => {
-        importFiles(entries.map((e) => {
-            return {
-                filename: e.filename,
-                contents: e.file,
-                handle: e.handle
-            };
-        }));
-    });
+    // CreateDropHandler(dropTarget, (entries, shift) => {
+    //     importFiles(entries.map((e) => {
+    //         return {
+    //             filename: e.filename,
+    //             contents: e.file,
+    //             handle: e.handle
+    //         };
+    //     }));
+    // });
 
     // get the list of visible splats containing gaussians
     const getSplats = () => {

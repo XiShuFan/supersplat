@@ -5,6 +5,7 @@ import { localize } from './localization';
 import { SplatList } from './splat-list';
 import sceneImportSvg from './svg/import.svg';
 import sceneNewSvg from './svg/new.svg';
+import customizeSvg from './svg/customize.svg'
 import { Tooltips } from './tooltips';
 import { Transform } from './transform';
 
@@ -42,32 +43,46 @@ class ScenePanel extends Container {
             class: 'panel-header-label'
         });
 
-        const sceneImport = new Container({
-            class: 'panel-header-button'
-        });
-        sceneImport.dom.appendChild(createSvg(sceneImportSvg));
+        // [关闭] 导入按钮
+        // const sceneImport = new Container({
+        //     class: 'panel-header-button'
+        // });
+        // sceneImport.dom.appendChild(createSvg(sceneImportSvg));
 
-        const sceneNew = new Container({
+        // [关闭] 新建场景按钮
+        // const sceneNew = new Container({
+        //     class: 'panel-header-button'
+        // });
+        // sceneNew.dom.appendChild(createSvg(sceneNewSvg));
+
+        // 选定视角定制
+        const frameCustomize = new Container({
             class: 'panel-header-button'
         });
-        sceneNew.dom.appendChild(createSvg(sceneNewSvg));
+        frameCustomize.dom.appendChild(createSvg(customizeSvg));
 
         sceneHeader.append(sceneIcon);
         sceneHeader.append(sceneLabel);
-        sceneHeader.append(sceneImport);
-        sceneHeader.append(sceneNew);
+        sceneHeader.append(frameCustomize);
+        // sceneHeader.append(sceneImport);
+        // sceneHeader.append(sceneNew);
 
-        sceneImport.on('click', async () => {
-            console.log("scene panel import scene");
-            await events.invoke('scene.import');
+        // sceneImport.on('click', async () => {
+        //     console.log("scene panel import scene");
+        //     await events.invoke('scene.import');
+        // });
+
+        // sceneNew.on('click', () => {
+        //     events.invoke('doc.new');
+        // });
+
+        frameCustomize.on('click', () => {
+            events.invoke('show.logoSettingsDialog');
         });
 
-        sceneNew.on('click', () => {
-            events.invoke('doc.new');
-        });
-
-        tooltips.register(sceneImport, 'Import Scene', 'top');
-        tooltips.register(sceneNew, 'New Scene', 'top');
+        // tooltips.register(sceneImport, 'Import Scene', 'top');
+        // tooltips.register(sceneNew, 'New Scene', 'top');
+        tooltips.register(frameCustomize, 'Current Frame Customization', 'top');
 
         const splatList = new SplatList(events);
 
@@ -95,8 +110,9 @@ class ScenePanel extends Container {
 
         this.append(sceneHeader);
         this.append(splatListContainer);
-        this.append(transformHeader);
-        this.append(new Transform(events));
+        // [关闭] 变换
+        // this.append(transformHeader);
+        // this.append(new Transform(events));
         this.append(new Element({
             class: 'panel-header',
             height: 20

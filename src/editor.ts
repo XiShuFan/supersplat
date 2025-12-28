@@ -604,6 +604,8 @@ const registerEditorEvents = (events: Events, editHistory: EditHistory, scene: S
     let cameraOverlay = scene.config.camera.overlay;
 
     const setCameraOverlay = (enabled: boolean) => {
+        // [关闭] 显示/隐藏 splat
+        enabled = false;
         if (enabled !== cameraOverlay) {
             cameraOverlay = enabled;
             events.fire('camera.overlay', cameraOverlay);

@@ -152,12 +152,14 @@ class EditorUI {
             id: 'main-container'
         });
 
-        const timelinePanel = new TimelinePanel(events, tooltips);
-        const dataPanel = new DataPanel(events);
+        // [关闭] 时间线栏
+        // const timelinePanel = new TimelinePanel(events, tooltips);
+        // [关闭] 底部splat数据
+        // const dataPanel = new DataPanel(events);
 
         mainContainer.append(canvasContainer);
-        mainContainer.append(timelinePanel);
-        mainContainer.append(dataPanel);
+        // mainContainer.append(timelinePanel);
+        // mainContainer.append(dataPanel);
 
         editorContainer.append(mainContainer);
 

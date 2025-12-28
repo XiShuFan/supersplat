@@ -18,12 +18,14 @@ const sceneConfig = {
         exposure: 1.0,
         toneMapping: 'linear',
         debugRender: '',
-        overlay: true,
+        // [关闭] 显示/隐藏 splat
+        overlay: false,
         highPrecision: true
     },
+    // [关闭] 网格、包围盒
     show: {
-        grid: true,
-        bound: true,
+        grid: false,
+        bound: false,
         shBands: 3
     },
     controls: {
