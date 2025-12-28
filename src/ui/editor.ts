@@ -169,7 +169,7 @@ class EditorUI {
         const popup = new Popup(tooltips);
 
         // shortcuts popup
-        const shortcutsPopup = new ShortcutsPopup();
+        // const shortcutsPopup = new ShortcutsPopup();
 
         // export popup
         const exportPopup = new ExportPopup(events);
@@ -196,7 +196,7 @@ class EditorUI {
         appContainer.append(editorContainer);
         appContainer.append(topContainer);
         appContainer.append(tooltipsContainer);
-        appContainer.append(shortcutsPopup);
+        // appContainer.append(shortcutsPopup);
 
         this.appContainer = appContainer;
         this.topContainer = topContainer;
@@ -208,9 +208,10 @@ class EditorUI {
         document.body.appendChild(appContainer.dom);
         document.body.setAttribute('tabIndex', '-1');
 
-        events.on('show.shortcuts', () => {
-            shortcutsPopup.hidden = false;
-        });
+        // [关闭] 快捷键
+        // events.on('show.shortcuts', () => {
+        //     shortcutsPopup.hidden = false;
+        // });
 
         events.function('show.exportPopup', (exportType, splatNames: [string], showFilenameEdit: boolean) => {
             return exportPopup.show(exportType, splatNames, showFilenameEdit);

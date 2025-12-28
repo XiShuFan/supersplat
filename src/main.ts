@@ -261,7 +261,8 @@ const main = async () => {
     registerDocEvents(scene, events);
     registerRenderEvents(scene, events);
     registerIframeApi(events);
-    initShortcuts(events);
+    // [关闭] 快捷键
+    // initShortcuts(events);
     initFileHandler(scene, events, editorUI.appContainer.dom);
 
     // load async models
