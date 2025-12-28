@@ -5,7 +5,7 @@ import { ElementType } from './element';
 import { Events } from './events';
 import { AssetSource } from './loaders/asset-source';
 import { Scene } from './scene';
-import { DownloadWriter, FileStreamWriter } from './serialize/writer';
+import { Writer, DownloadWriter, FileStreamWriter, MemoryWriter } from './serialize/writer';
 import { Splat } from './splat';
 import { serializePly, serializePlyCompressed, SerializeSettings, serializeSplat, serializeViewer, ViewerExportSettings } from './splat-serialize';
 import { serializePcdPly, serializeGaussianPly } from './pointcloud-serialize';
@@ -639,6 +639,43 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
 
+
+    // 加载生成的高斯文件
+    events.function('scene.point.cloud.import', async (points: Vec3[], colors: Vec3[], scales: Vec3[]) => {
+
+        const splats = scene.getElementsByType(ElementType.splat);
+        const filename = `generate_${splats.length}.ply`;
+        // 存储高斯内容
+        const writer = new MemoryWriter();
+
+        try {
+            await events.invoke('scene.point.cloud.write', filename, points, colors, scales, writer);
+            const plyBytes = writer.toUint8Array();
+            // 推荐写法
+            const safeBytes = new Uint8Array(plyBytes);
+            const plyFile = new File(
+                [safeBytes],
+                filename,
+                {
+                    type: 'application/ply'
+                }
+            );
+            // 导入高斯模型
+            importFiles([
+                {
+                    filename: plyFile.name,
+                    contents: plyFile
+                }
+            ]);
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error);
+            }
+        }
+    });
+
+
+    // 导出高斯文件
     events.function('scene.point.cloud.export', async (points: Vec3[], colors: Vec3[], scales: Vec3[]) => {
 
         const hasFilePicker = !!window.showSaveFilePicker;
@@ -656,7 +693,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
 
-    events.function('scene.point.cloud.write', async (filename: string, points: Vec3[], colors: Vec3[], scales: Vec3[], stream?: FileSystemWritableFileStream) => {
+    events.function('scene.point.cloud.write', async (filename: string, points: Vec3[], colors: Vec3[], scales: Vec3[], defaultWriter: Writer) => {
         events.fire('startSpinner');
 
         try {
@@ -665,7 +702,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                 setTimeout(resolve);
             });
 
-            const writer = stream ? new FileStreamWriter(stream) : new DownloadWriter(filename);
+            const writer = defaultWriter ? defaultWriter : new DownloadWriter(filename);
 
             try {
                 // await serializePcdPly(points, colors, writer, null, true);

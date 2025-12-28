@@ -198,4 +198,29 @@ class ProgressASCIIWriter implements Writer {
     }
 }
 
-export { Writer, FileStreamWriter, BufferWriter, DownloadWriter, GZipWriter, ProgressWriter, ProgressASCIIWriter };
+
+// 写入内存
+class MemoryWriter implements Writer {
+    private chunks: Uint8Array[] = [];
+
+    async write(data: Uint8Array) {
+        // ⚠️ 复制一份，避免复用 buffer 出问题
+        this.chunks.push(new Uint8Array(data));
+    }
+
+    async close() {}
+
+    toUint8Array(): Uint8Array {
+        const total = this.chunks.reduce((s, c) => s + c.length, 0);
+        const out = new Uint8Array(total);
+        let offset = 0;
+        for (const c of this.chunks) {
+            out.set(c, offset);
+            offset += c.length;
+        }
+        return out;
+    }
+}
+
+
+export { Writer, FileStreamWriter, BufferWriter, DownloadWriter, GZipWriter, ProgressWriter, ProgressASCIIWriter, MemoryWriter };

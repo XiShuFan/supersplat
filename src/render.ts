@@ -405,20 +405,6 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             console.log("candidate num:", candidates.length);
 
-            // TODO 慢方法
-            // for (let i = 0; i < candidates.length; i += 10) {
-            //     let c = candidates[i];
-            //     const result = camera.intersect(c.x / width * clientWidth, c.y / height * clientHeight);
-            //     if (result != null) {
-            //         points.push(result.position);
-            //         colors.push(new Vec3(
-            //             c.r / 255,
-            //             c.g / 255,
-            //             c.b / 255
-            //         ));
-            //     }
-            // }
-
             // 批量获取三维点
             const worldPoints: PixelHit[] = camera.getWorldPointsInCurrentFrame();
             for (let i = 0; i < candidates.length; i ++) {
@@ -493,7 +479,10 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             console.log("end point cloud, point num:", points.length);
             // 触发下载点云文件
-            events.invoke('scene.point.cloud.export', points, colors, scales);
+            // events.invoke('scene.point.cloud.export', points, colors, scales);
+
+            // 触发加载点云文件
+            events.invoke('scene.point.cloud.import', points, colors, scales);
 
             return true;
         } catch (error) {
