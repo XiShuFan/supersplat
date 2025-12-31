@@ -54,7 +54,9 @@ class SplatItem extends Container {
         this.append(text);
         this.append(visible);
         this.append(invisible);
-        this.append(remove);
+        if (name.startsWith("generate")) {
+            this.append(remove);
+        }
 
         this.getName = () => {
             return text.value;
