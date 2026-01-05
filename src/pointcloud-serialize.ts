@@ -177,6 +177,7 @@ const serializeGaussianPly = async (
 
     const shCoeffs: Vec3[] = RGB2SH(colors);
     const opacities: number[] = Array(vertexCount).fill(inverseSigmoid(0.9));
+    const rots: number[] = [1.0, 0.0, 0.0, 0.0];
     scales = scales.map(s => (new Vec3(
         Math.log(s.x),
         Math.log(s.y),
@@ -239,7 +240,7 @@ const serializeGaussianPly = async (
                 `${sh.x} ${sh.y} ${sh.z} ` +
                 `${opacity} ` +
                 `${s.x} ${s.y} ${s.z} ` +
-                `0.0 0.0 0.0 0.0`
+                `${rots[0]} ${rots[1]} ${rots[2]} ${rots[3]}`
             );
 
             if (lines.length === CHUNK_POINTS) {
@@ -280,10 +281,10 @@ const serializeGaussianPly = async (
             setF32(s.x);
             setF32(s.y);
             setF32(s.z);
-            setF32(0.0);
-            setF32(0.0);
-            setF32(0.0);
-            setF32(0.0);
+            setF32(rots[0]);
+            setF32(rots[1]);
+            setF32(rots[2]);
+            setF32(rots[3]);
 
             if (offset === buffer.byteLength) {
                 await progressWriter.write(buffer);
