@@ -7,16 +7,16 @@ import { AssetSource } from './loaders/asset-source';
 import { Scene } from './scene';
 import { Writer, DownloadWriter, FileStreamWriter, MemoryWriter } from './serialize/writer';
 import { Splat } from './splat';
-import { serializePly, serializePlyCompressed, SerializeSettings, serializeSplat, serializeViewer, ViewerExportSettings } from './splat-serialize';
 import { serializePcdPly, serializeGaussianPly } from './pointcloud-serialize';
+import { serializePly, serializePlyCompressed, SerializeSettings, serializeSog, serializeSplat, serializeViewer, SogSettings, ViewerExportSettings } from './splat-serialize';
 import { localize } from './ui/localization';
 
 // ts compiler and vscode find this type, but eslint does not
 type FilePickerAcceptType = unknown;
 
-type ExportType = 'ply' | 'splat' | 'viewer';
+type ExportType = 'ply' | 'splat' | 'sog' | 'viewer';
 
-type FileType = 'ply' | 'compressedPly' | 'splat' | 'htmlViewer' | 'packageViewer';
+type FileType = 'ply' | 'compressedPly' | 'splat' | 'sog' | 'htmlViewer' | 'packageViewer';
 
 interface SceneExportOptions {
     filename: string;
@@ -25,6 +25,9 @@ interface SceneExportOptions {
 
     // ply
     compressedPly?: boolean;
+
+    // sog
+    sogIterations?: number;
 
     // viewer
     viewerExportSettings?: ViewerExportSettings;
@@ -550,7 +553,7 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
         }
     });
 
-    events.function('scene.export', async (exportType: 'ply' | 'splat' | 'viewer') => {
+    events.function('scene.export', async (exportType: ExportType) => {
         const splats = getSplats();
 
         const hasFilePicker = !!window.showSaveFilePicker;
@@ -563,9 +566,10 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
             return;
         }
 
-        const fileType =
-            (exportType === 'viewer') ? (options.viewerExportSettings.type === 'zip' ? 'packageViewer' : 'htmlViewer') :
-                (exportType === 'ply') ? (options.compressedPly ? 'compressedPly' : 'ply') : 'splat';
+        const fileType: FileType =
+            (exportType === 'viewer') ? (options.viewerExportSettings!.type === 'zip' ? 'packageViewer' : 'htmlViewer') :
+                (exportType === 'ply') ? (options.compressedPly ? 'compressedPly' : 'ply') :
+                    (exportType === 'sog') ? 'sog' : 'splat';
 
         if (hasFilePicker) {
             try {
@@ -587,10 +591,15 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 
     events.function('scene.write', async (fileType: FileType, options: SceneExportOptions, stream?: FileSystemWritableFileStream) => {
-        events.fire('startSpinner');
+        // SOG has its own progress UI, other formats use spinner
+        const useSpinner = fileType !== 'sog';
+
+        if (useSpinner) {
+            events.fire('startSpinner');
+        }
 
         try {
-            // setTimeout so spinner has a chance to activate
+            // setTimeout so spinner/progress has a chance to activate
             await new Promise<void>((resolve) => {
                 setTimeout(resolve);
             });
@@ -615,9 +624,20 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     case 'splat':
                         await serializeSplat(splats, serializeSettings, writer);
                         break;
+                    case 'sog': {
+                        const sogSettings: SogSettings = {
+                            ...serializeSettings,
+                            minOpacity: 1 / 255,
+                            removeInvalid: true,
+                            iterations: options.sogIterations ?? 10,
+                            events
+                        };
+                        await serializeSog(splats, sogSettings, writer);
+                        break;
+                    }
                     case 'htmlViewer':
                     case 'packageViewer':
-                        await serializeViewer(splats, serializeSettings, viewerExportSettings, writer);
+                        await serializeViewer(splats, serializeSettings, viewerExportSettings!, writer);
                         break;
                 }
             } finally {
@@ -631,7 +651,9 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                 message: `${error.message ?? error} while saving file`
             });
         } finally {
-            events.fire('stopSpinner');
+            if (useSpinner) {
+                events.fire('stopSpinner');
+            }
         }
     });
 

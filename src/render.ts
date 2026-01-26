@@ -1,5 +1,5 @@
 import { BufferTarget, EncodedPacket, EncodedVideoPacketSource, MkvOutputFormat, MovOutputFormat, Mp4OutputFormat, Output, StreamTarget, WebMOutputFormat } from 'mediabunny';
-import { path, Vec3 } from 'playcanvas';
+import { Color, path, Vec3 } from 'playcanvas';
 
 import { ElementType } from './element';
 import { Events } from './events';
@@ -9,6 +9,8 @@ import { Splat } from './splat';
 import { localize } from './ui/localization';
 import { Camera } from './camera';
 import { SelectOp } from './edit-ops';
+
+const nullClr = new Color(0, 0, 0, 0);
 
 type ImageSettings = {
     width: number;
@@ -93,13 +95,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // cpu-side buffer to read pixels into
             const data = new Uint8Array(width * height * 4);
 
-            const { renderTarget } = scene.camera.entity.camera;
-            const { workRenderTarget } = scene.camera;
+            const { mainTarget, workTarget } = scene.camera;
 
-            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+            scene.dataProcessor.copyRt(mainTarget, workTarget);
 
             // read the rendered frame
-            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
+            await workTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workTarget, data });
 
             // flip y positions to have 0,0 at the top
             let line = new Uint8Array(width * 4);
@@ -114,7 +115,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
             scene.gizmoLayer.enabled = true;
-            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+            scene.camera.camera.clearColor.set(0, 0, 0, 0);
         }
     });
 
@@ -130,7 +131,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.renderOverlays = showDebug;
             scene.gizmoLayer.enabled = false;
             if (!transparentBg) {
-                scene.camera.entity.camera.clearColor.copy(bgClr);
+                scene.camera.clearPass.setClearColor(events.invoke('bgClr'));
             }
 
             // render the next frame
@@ -142,28 +143,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // cpu-side buffer to read pixels into
             const data = new Uint8Array(width * height * 4);
 
-            const { renderTarget } = scene.camera.entity.camera;
-            const { workRenderTarget } = scene.camera;
+            const { mainTarget, workTarget } = scene.camera;
 
-            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+            scene.dataProcessor.copyRt(mainTarget, workTarget);
 
             // read the rendered frame
-            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
-
-            // the render buffer contains premultiplied alpha. so apply background color.
-            if (!transparentBg) {
-                // @ts-ignore
-                const pixels = new Uint8ClampedArray(data.buffer);
-
-                const { r, g, b } = bgClr;
-                for (let i = 0; i < pixels.length; i += 4) {
-                    const a = 255 - pixels[i + 3];
-                    pixels[i + 0] += r * a;
-                    pixels[i + 1] += g * a;
-                    pixels[i + 2] += b * a;
-                    pixels[i + 3] = 255;
-                }
-            }
+            await workTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workTarget, data });
 
             // construct the png compressor
             if (!compressor) {
@@ -194,7 +179,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
             scene.gizmoLayer.enabled = true;
-            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+            scene.camera.clearPass.setClearColor(nullClr);
 
             events.fire('stopSpinner');
         }
@@ -214,7 +199,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.renderOverlays = showDebug;
             scene.gizmoLayer.enabled = false;
             if (!transparentBg) {
-                scene.camera.entity.camera.clearColor.copy(bgClr);
+                scene.camera.camera.clearColor.copy(bgClr);
             }
 
             // render the next frame
@@ -226,13 +211,13 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             // cpu-side buffer to read pixels into
             const data = new Uint8Array(width * height * 4);
 
-            const { renderTarget } = scene.camera.entity.camera;
-            const { workRenderTarget } = scene.camera;
+            const { renderTarget } = scene.camera.camera;
+            const { workTarget } = scene.camera;
 
-            scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+            scene.dataProcessor.copyRt(renderTarget, workTarget);
 
             // read the rendered frame
-            await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
+            await workTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workTarget, data });
 
             // the render buffer contains premultiplied alpha. so apply background color.
             if (!transparentBg) {
@@ -274,7 +259,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
             scene.gizmoLayer.enabled = true;
-            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+            scene.camera.camera.clearColor.set(0, 0, 0, 0);
 
             events.fire('stopSpinner');
         }
@@ -406,7 +391,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             console.log("candidate num:", candidates.length);
 
             // 批量获取三维点
-            const worldPoints: PixelHit[] = camera.getWorldPointsInCurrentFrame();
+            const worldPoints: PixelHit[] = await camera.getWorldPointsInCurrentFrame();
             for (let i = 0; i < candidates.length; i ++) {
                 const neighborIndices = neighbors[i];
                 if (neighborIndices.length === 0) continue; // 没有邻居，跳过
@@ -582,7 +567,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.renderOverlays = showDebug;
             scene.gizmoLayer.enabled = false;
             if (!transparentBg) {
-                scene.camera.entity.camera.clearColor.copy(events.invoke('bgClr'));
+                scene.camera.clearPass.setClearColor(events.invoke('bgClr'));
             }
             scene.lockedRenderMode = true;
 
@@ -605,8 +590,8 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
                 scene.camera.onUpdate(0);
 
                 // if the camera didn't move, don't sort
-                const pos = scene.camera.entity.getPosition();
-                const forward = scene.camera.entity.forward;
+                const pos = scene.camera.position;
+                const forward = scene.camera.forward;
                 if (last_pos.equals(pos) && last_forward.equals(forward)) {
                     return;
                 }
@@ -629,7 +614,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
                         // manually invoke sort because internally the engine sorts after render the
                         // scene call is made.
-                        instance.sort(scene.camera.entity);
+                        instance.sort(scene.camera.mainCamera);
 
                         // in cases where the camera does not move between frames the sorter won't run
                         // and we need a timeout instead. this is a hack - the engine should allow us to
@@ -643,13 +628,12 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
 
             // capture the current video frame
             const captureFrame = async (frameTime: number) => {
-                const { renderTarget } = scene.camera.entity.camera;
-                const { workRenderTarget } = scene.camera;
+                const { mainTarget, workTarget } = scene.camera;
 
-                scene.dataProcessor.copyRt(renderTarget, workRenderTarget);
+                scene.dataProcessor.copyRt(mainTarget, workTarget);
 
                 // read the rendered frame
-                await workRenderTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workRenderTarget, data });
+                await workTarget.colorBuffer.read(0, 0, width, height, { renderTarget: workTarget, data });
 
                 // flip the buffer vertically
                 for (let y = 0; y < height / 2; y++) {
@@ -717,7 +701,7 @@ const registerRenderEvents = (scene: Scene, events: Events) => {
             scene.camera.endOffscreenMode();
             scene.camera.renderOverlays = true;
             scene.gizmoLayer.enabled = true;
-            scene.camera.entity.camera.clearColor.set(0, 0, 0, 0);
+            scene.camera.clearPass.setClearColor(nullClr);
             scene.lockedRenderMode = false;
             scene.forceRender = true;       // camera likely moved, finish with normal render
 

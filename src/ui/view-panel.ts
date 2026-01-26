@@ -2,6 +2,7 @@ import { BooleanInput, ColorPicker, Container, Label, SelectInput, SliderInput }
 import { Color } from 'playcanvas';
 
 import { Events } from '../events';
+import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
 import { Tooltips } from './tooltips';
 
@@ -216,31 +217,11 @@ class ViewPanel extends Container {
             min: 0.1,
             max: 30,
             precision: 1,
-            value: 5
+            value: 1
         });
 
         cameraFlySpeedRow.append(cameraFlySpeedLabel);
         cameraFlySpeedRow.append(cameraFlySpeedSlider);
-
-        // high precision (render to float)
-
-        const highPrecisionRow = new Container({
-            class: 'view-panel-row'
-        });
-
-        const highPrecisionLabel = new Label({
-            text: localize('panel.view-options.high-precision'),
-            class: 'view-panel-row-label'
-        });
-
-        const highPrecisionToggle = new BooleanInput({
-            type: 'toggle',
-            class: 'view-panel-row-toggle',
-            value: true
-        });
-
-        highPrecisionRow.append(highPrecisionLabel);
-        highPrecisionRow.append(highPrecisionToggle);
 
         // outline selection
 
@@ -309,7 +290,6 @@ class ViewPanel extends Container {
         this.append(shBandsRow);
         this.append(centersSizeRow);
         this.append(cameraFlySpeedRow);
-        this.append(highPrecisionRow);
         this.append(outlineSelectionRow);
         this.append(showGridRow);
         this.append(showBoundRow);
@@ -403,16 +383,6 @@ class ViewPanel extends Container {
             events.fire('camera.setBound', showBoundToggle.value);
         });
 
-        // high precision (render to float)
-
-        events.on('camera.highPrecision', (enabled: boolean) => {
-            highPrecisionToggle.value = enabled;
-        });
-
-        highPrecisionToggle.on('change', () => {
-            events.fire('camera.sethighPrecision', highPrecisionToggle.value);
-        });
-
         // background color
 
         bgClrPicker.on('change', (value: number[]) => {
@@ -452,6 +422,9 @@ class ViewPanel extends Container {
         });
 
         // tooltips
+        const shortcutManager: ShortcutManager = events.invoke('shortcutManager');
+        const shortcut = shortcutManager.formatShortcut('grid.toggleVisible');
+        tooltips.register(showGridLabel, `${localize('panel.view-options.show-grid')} ( ${shortcut} )`, 'left');
         tooltips.register(bgClrPicker, localize('panel.view-options.background-color'), 'left');
         tooltips.register(selectedClrPicker, localize('panel.view-options.selected-color'), 'top');
         tooltips.register(unselectedClrPicker, localize('panel.view-options.unselected-color'), 'top');
