@@ -26,6 +26,7 @@ const sceneConfig = {
     show: {
         grid: false,
         bound: false,
+        cameraPoses: false,
         shBands: 3
     },
     controls: {

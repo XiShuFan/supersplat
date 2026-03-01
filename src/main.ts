@@ -1,3 +1,4 @@
+import { WebPCodec } from '@playcanvas/splat-transform';
 import { Color, createGraphicsDevice } from 'playcanvas';
 
 import { registerCameraPosesEvents } from './camera-poses';
@@ -28,6 +29,7 @@ import { RotateTool } from './tools/rotate-tool';
 import { ScaleTool } from './tools/scale-tool';
 import { SphereSelection } from './tools/sphere-selection';
 import { ToolManager } from './tools/tool-manager';
+import { registerTrackManagerEvents } from './track-manager';
 import { registerTransformHandlerEvents } from './transform-handler';
 import { EditorUI } from './ui/editor';
 import { localizeInit } from './ui/localization';
@@ -84,9 +86,13 @@ const main = async () => {
     // init localization
     await localizeInit();
 
+    // Configure WebP WASM for SOG format (used for both reading and writing)
+    WebPCodec.wasmUrl = new URL('static/lib/webp/webp.wasm', document.baseURI).toString();
+
     // register events that only need the events object (before UI is created)
     registerTimelineEvents(events);
     registerCameraPosesEvents(events);
+    registerTrackManagerEvents(events);
     registerTransformHandlerEvents(events);
     registerPlySequenceEvents(events);
     registerPublishEvents(events);

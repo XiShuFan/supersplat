@@ -15,6 +15,7 @@ import {
 
 import { AssetLoader } from './asset-loader';
 import { Camera } from './camera';
+import { CameraPoseGizmos } from './camera-pose-gizmos';
 import { DataProcessor } from './data-processor';
 import { Element, ElementType, ElementTypeList } from './element';
 import { Events } from './events';
@@ -92,6 +93,7 @@ class Scene {
     dataProcessor: DataProcessor;
     assetLoader: AssetLoader;
     camera: Camera;
+    cameraPoseGizmos: CameraPoseGizmos;
     splatOverlay: SplatOverlay;
     grid: Grid;
     outline: Outline;
@@ -200,7 +202,7 @@ class Scene {
         layers.push(this.gizmoLayer);
 
         this.dataProcessor = new DataProcessor(this.app.graphicsDevice);
-        this.assetLoader = new AssetLoader(this.app, events, this.app.graphicsDevice.maxAnisotropy);
+        this.assetLoader = new AssetLoader(this.app, events);
 
         // create root entities
         this.contentRoot = new Entity('contentRoot');
@@ -212,6 +214,9 @@ class Scene {
         // create elements
         this.camera = new Camera();
         this.add(this.camera);
+
+        this.cameraPoseGizmos = new CameraPoseGizmos();
+        this.add(this.cameraPoseGizmos);
 
         this.splatOverlay = new SplatOverlay();
         this.add(this.splatOverlay);
@@ -239,11 +244,11 @@ class Scene {
     }
 
     // add a scene element
-    add(element: Element) {
+    async add(element: Element) {
         if (!element.scene) {
             // add the new element
             element.scene = this;
-            element.add();
+            await element.add();
             this.elements.push(element);
 
             // notify all elements of scene addition

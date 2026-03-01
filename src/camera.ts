@@ -1,13 +1,13 @@
 import {
     math,
     ADDRESS_CLAMP_TO_EDGE,
+    ASPECT_MANUAL,
     FILTER_NEAREST,
     PIXELFORMAT_RGBA8,
     PIXELFORMAT_RGBA16F,
     PIXELFORMAT_DEPTH,
     PROJECTION_ORTHOGRAPHIC,
     PROJECTION_PERSPECTIVE,
-    TONEMAP_NONE,
     TONEMAP_ACES,
     TONEMAP_ACES2,
     TONEMAP_FILMIC,
@@ -150,7 +150,6 @@ class Camera extends Element {
     // tonemapping
     set tonemapping(value: string) {
         const mapping: Record<string, number> = {
-            none: TONEMAP_NONE,
             linear: TONEMAP_LINEAR,
             neutral: TONEMAP_NEUTRAL,
             aces: TONEMAP_ACES,
@@ -169,7 +168,6 @@ class Camera extends Element {
 
     get tonemapping() {
         switch (this.camera.toneMapping) {
-            case TONEMAP_NONE: return 'none';
             case TONEMAP_LINEAR: return 'linear';
             case TONEMAP_NEUTRAL: return 'neutral';
             case TONEMAP_ACES: return 'aces';
@@ -177,7 +175,7 @@ class Camera extends Element {
             case TONEMAP_FILMIC: return 'filmic';
             case TONEMAP_HEJL: return 'hejl';
         }
-        return 'none';
+        return 'linear';
     }
 
     // near clip
@@ -288,6 +286,9 @@ class Camera extends Element {
             scene.splatLayer.id,
             scene.gizmoLayer.id
         ];
+
+        // use manual aspect ratio mode so we can set it based on targetSize
+        camera.aspectRatioMode = ASPECT_MANUAL;
 
         // create render passes
         const device = scene.graphicsDevice;
@@ -524,12 +525,12 @@ class Camera extends Element {
             this.splatPass.addLayer(this.camera, scene.splatLayer, false, false);
             this.splatPass.addLayer(this.camera, scene.splatLayer, true, false);
 
-            // configure gizmo pass - clears depth/stencil only
-            this.gizmoPass.init(this.colorTarget);
+            // configure gizmo pass
+            this.gizmoPass.init(this.mainTarget);
             this.gizmoPass.addLayer(this.camera, scene.gizmoLayer, false, false);
             this.gizmoPass.addLayer(this.camera, scene.gizmoLayer, true, false);
-            this.gizmoPass.setClearDepth(1);
-            this.gizmoPass.setClearStencil(0);
+            this.gizmoPass.renderActions[0].clearDepth = true;
+            this.gizmoPass.renderActions[0].clearStencil = true;
 
             this.finalPass.init(null);
 
@@ -546,6 +547,7 @@ class Camera extends Element {
         }
 
         this.camera.horizontalFov = width > height;
+        this.camera.aspectRatio = width / height;
         scene.events.fire('camera.resize', { width, height });
     }
 
@@ -631,12 +633,9 @@ class Camera extends Element {
     }
 
     get fovFactor() {
-        // we set the fov of the longer axis. here we get the fov of the other (smaller) axis so framing
-        // doesn't cut off the scene.
-        const { width, height } = this.targetSize;
-        const aspect = (width && height) ? this.camera.horizontalFov ? height / width : width / height : 1;
-        const fov = 2 * Math.atan(Math.tan(this.fov * math.DEG_TO_RAD * 0.5) * aspect);
-        return Math.sin(fov * 0.5);
+        // use the larger axis fov (which is always this.fov) so camera distance
+        // stays constant regardless of viewport aspect ratio.
+        return Math.sin(this.fov * math.DEG_TO_RAD * 0.5);
     }
 
     getRay(screenX: number, screenY: number, ray: Ray) {
@@ -703,8 +702,7 @@ class Camera extends Element {
             const splat = splats[i] as Splat;
 
             this.pickPrep(splat, 'set');
-            const pickIds = await this.pickRect(0, 0, scene.targetSize.width, scene.targetSize.height);
-
+            const pickIds = await this.pickRect(0, 0, 1, 1);
             for (let sy = 0; sy < scene.targetSize.height; sy++) {
                 for (let sx = 0; sx < scene.targetSize.width; sx++) {
                     const screenX = sx / scene.targetSize.width * target.clientWidth;
@@ -848,11 +846,15 @@ class Camera extends Element {
     startOffscreenMode(width: number, height: number) {
         this.targetSizeOverride = { width, height };
         this.finalPass.enabled = false;
+        this.rebuildRenderTargets();
+        this.onUpdate(0);
     }
 
     endOffscreenMode() {
         this.targetSizeOverride = null;
         this.finalPass.enabled = true;
+        this.rebuildRenderTargets();
+        this.onUpdate(0);
     }
 
     get targetSize() {

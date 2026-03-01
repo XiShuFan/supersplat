@@ -85,19 +85,31 @@ const popupConfig: Record<string, CategoryConfig> = {
             { displayKey: '[ ]', localeKey: 'popup.shortcuts.brush-size' }
         ]
     },
+    playback: {
+        localeKey: 'popup.shortcuts.playback',
+        shortcuts: [
+            { id: 'timeline.togglePlay', localeKey: 'popup.shortcuts.play-pause' },
+            { id: 'timeline.prevFrame', localeKey: 'popup.shortcuts.prev-frame' },
+            { id: 'timeline.nextFrame', localeKey: 'popup.shortcuts.next-frame' },
+            { id: 'timeline.prevKey', localeKey: 'popup.shortcuts.prev-key' },
+            { id: 'timeline.nextKey', localeKey: 'popup.shortcuts.next-key' },
+            { id: 'track.addKey', localeKey: 'popup.shortcuts.add-key' },
+            { id: 'track.removeKey', localeKey: 'popup.shortcuts.remove-key' }
+        ]
+    },
     other: {
         localeKey: 'popup.shortcuts.other',
         shortcuts: [
-            { id: 'selection.next', localeKey: 'popup.shortcuts.select-next-splat' },
             { id: 'edit.undo', localeKey: 'popup.shortcuts.undo' },
             { id: 'edit.redo', localeKey: 'popup.shortcuts.redo' },
-            { id: 'dataPanel.toggle', localeKey: 'popup.shortcuts.toggle-data-panel' }
+            { id: 'dataPanel.toggle', localeKey: 'popup.shortcuts.toggle-data-panel' },
+            { id: 'timelinePanel.toggle', localeKey: 'popup.shortcuts.toggle-timeline-panel' }
         ]
     }
 };
 
 // Category display order
-const categoryOrder = ['navigation', 'camera', 'show', 'selection', 'tools', 'other'];
+const categoryOrder = ['navigation', 'camera', 'show', 'selection', 'tools', 'playback', 'other'];
 
 class ShortcutsPopup extends Container {
     constructor(events: Events, args = {}) {
