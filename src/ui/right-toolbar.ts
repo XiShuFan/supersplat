@@ -5,6 +5,7 @@ import { ShortcutManager } from '../shortcut-manager';
 import { localize } from './localization';
 import cameraFrameSelectionSvg from './svg/camera-frame-selection.svg';
 import cameraResetSvg from './svg/camera-reset.svg';
+import cameraNextColmapSvg from './svg/camera-next-colmap.svg';
 import centersSvg from './svg/centers.svg';
 import colorPanelSvg from './svg/color-panel.svg';
 import flyCameraSvg from './svg/fly-camera.svg';
@@ -61,6 +62,11 @@ class RightToolbar extends Container {
             class: 'right-toolbar-button'
         });
 
+        const cameraNextColmap = new Button({
+            id: 'right-toolbar-camera-next-colmap',
+            class: 'right-toolbar-button'
+        });
+
         const colorPanel = new Button({
             id: 'right-toolbar-color-panel',
             class: 'right-toolbar-toggle'
@@ -83,6 +89,7 @@ class RightToolbar extends Container {
         flyMode.dom.appendChild(createSvg(flyCameraSvg));
         cameraFrameSelection.dom.appendChild(createSvg(cameraFrameSelectionSvg));
         cameraReset.dom.appendChild(createSvg(cameraResetSvg));
+        cameraNextColmap.dom.appendChild(createSvg(cameraNextColmapSvg));
         colorPanel.dom.appendChild(createSvg(colorPanelSvg));
 
         this.append(ringsModeToggle);
@@ -93,6 +100,7 @@ class RightToolbar extends Container {
         this.append(new Element({ class: 'right-toolbar-separator' }));
         this.append(cameraFrameSelection);
         this.append(cameraReset);
+        this.append(cameraNextColmap);
         this.append(new Element({ class: 'right-toolbar-separator' }));
         this.append(colorPanel);
         this.append(options);
@@ -116,6 +124,9 @@ class RightToolbar extends Container {
         tooltips.register(flyMode, tooltip('tooltip.right-toolbar.fly-camera', 'camera.toggleControlMode'), 'left');
         tooltips.register(cameraFrameSelection, tooltip('tooltip.right-toolbar.frame-selection', 'camera.focus'), 'left');
         tooltips.register(cameraReset, tooltip('tooltip.right-toolbar.reset-camera', 'camera.reset'), 'left');
+
+        // 下一个colmap相机视角
+        tooltips.register(cameraNextColmap, tooltip('tooltip.right-toolbar.next-colmap-camera', 'camera.nextColmap'), 'left');
         tooltips.register(colorPanel, tooltip('tooltip.right-toolbar.colors'), 'left');
         tooltips.register(options, tooltip('tooltip.right-toolbar.view-options'), 'left');
 
@@ -130,6 +141,7 @@ class RightToolbar extends Container {
         flyMode.on('click', () => events.fire('camera.setControlMode', 'fly'));
         cameraFrameSelection.on('click', () => events.fire('camera.focus'));
         cameraReset.on('click', () => events.fire('camera.reset'));
+        cameraNextColmap.on('click', () => events.fire('camera.nextColmap'));
         colorPanel.on('click', () => events.fire('colorPanel.toggleVisible'));
         options.on('click', () => events.fire('viewPanel.toggleVisible'));
 

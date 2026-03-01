@@ -1,4 +1,4 @@
-import { path, Quat, Vec3 } from 'playcanvas';
+import { path, Quat, Vec3, math } from 'playcanvas';
 
 import { CreateDropHandler } from './drop-handler';
 import { ElementType } from './element';
@@ -10,6 +10,7 @@ import { Splat } from './splat';
 import { serializePcdPly, serializeGaussianPly } from './pointcloud-serialize';
 import { serializePly, serializePlyCompressed, SerializeSettings, serializeSog, serializeSplat, serializeViewer, SogSettings, ViewerExportSettings } from './splat-serialize';
 import { localize } from './ui/localization';
+import { Pose } from './camera-poses';
 
 // ts compiler and vscode find this type, but eslint does not
 type FilePickerAcceptType = unknown;
@@ -183,6 +184,62 @@ const loadCameraPoses = async (file: ImportFile, events: Events) => {
         });
     }
 };
+
+
+// 单独加载一个 colmap 相机位姿
+const loadCameraPoseFromPositionAndRotation = (
+    position: Vec3,
+    rotation: number[][],
+    events: Events,
+    name: string = "custom_pose",
+    frame: number = 0,
+    offset: number = 10
+) => {
+
+    // camera center
+    const p = new Vec3(
+        position.x,
+        position.y,
+        position.z
+    );
+
+    // forward direction = rotation third column
+    const forward = new Vec3(
+        rotation[0][2],
+        rotation[1][2],
+        rotation[2][2]
+    );
+
+    const target = forward.clone()
+        .mulScalar(offset)
+        .add(p);
+
+    // convert COLMAP → SuperSplat coord system
+    const ssPosition = new Vec3(
+        -p.x,
+        -p.y,
+        p.z
+    );
+
+    const ssTarget = new Vec3(
+        -target.x,
+        -target.y,
+        target.z
+    );
+
+    const pose: Pose = {
+        name,
+        frame,
+        position: ssPosition,
+        target: ssTarget
+    };
+
+    // events.fire('camera.addPose', pose);
+
+    return pose;
+};
+
+
 
 const removeExtension = (filename: string) => {
     return filename.substring(0, filename.length - path.getExtension(filename).length);
@@ -377,7 +434,8 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
                     result.push(await importFile(files[i], animationFrame));
                     // 校准第一次导入的商品
                     if (!filename.startsWith('generate')) {
-                        await events.fire('camera.focus');
+                        // 更新到相机位姿
+                        await events.fire('camera.nextColmap', 0);
                     }
                 } else if (filename.endsWith('images.txt')) {
                     // load colmap frames
@@ -742,4 +800,4 @@ const initFileHandler = (scene: Scene, events: Events, dropTarget: HTMLElement) 
     });
 };
 
-export { initFileHandler, ExportType, SceneExportOptions };
+export { initFileHandler, loadCameraPoseFromPositionAndRotation, ExportType, SceneExportOptions };

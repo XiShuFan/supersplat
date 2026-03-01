@@ -569,6 +569,9 @@ class Camera extends Element {
         this.mainCamera.setLocalPosition(cameraPosition);
         this.mainCamera.setLocalEulerAngles(azimElev.elev, azimElev.azim, 0);
 
+        //console.log("camera position:", cameraPosition);
+        //console.log("camera rotation:", azimElev.elev, azimElev.azim, 0);
+
         this.fitClippingPlanes(this.mainCamera.getLocalPosition(), this.mainCamera.forward);
 
         const { camera } = this.mainCamera;
@@ -789,6 +792,7 @@ class Camera extends Element {
 
     // intersect the scene at the normalized screen location (0-1 range) and focus the camera on this location
     async pickFocalPoint(x: number, y: number) {
+        console.log("pick focal point at:", x, y);
         const result = await this.intersect(x, y);
         if (result) {
             const { scene } = this;
